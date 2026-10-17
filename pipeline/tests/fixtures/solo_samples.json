@@ -1,0 +1,156 @@
+{
+  "puzzlesCommit": "616da16f25da428ccda805536209095bd062676e",
+  "samplesPerGrade": 5,
+  "grades": [
+    {
+      "band": 1,
+      "grade": "trivial",
+      "params": "3x3dt",
+      "canonicalParams": "3x3",
+      "seed": "task2-trivial",
+      "solosolverRating": "Trivial",
+      "samples": [
+        {
+          "seedId": "3x3#task2-trivial",
+          "gameId": "3x3:9a8f1a2a9a5_6_4a7_5_3b1d6a5c2c7a1c7c6a8d1b9_6_8a5_6_7a3a2a9f3a1"
+        },
+        {
+          "seedId": "3x3#task2-trivial-1",
+          "gameId": "3x3:a6c2a3_5b9b3_8_7b3_4c9d6_3_9a5_2d2a8d2_1a6_5_3d5c7_6b4_3_1b2b6_7a5c4a"
+        },
+        {
+          "seedId": "3x3#task2-trivial-2",
+          "gameId": "3x3:4d7b5b6a2a9_4a3a2b4a1d4_3b6_7i9_6b5_2d2a7b6a1a7_4a1a8b8b6d4"
+        },
+        {
+          "seedId": "3x3#task2-trivial-3",
+          "gameId": "3x3:a7b6_1c2d8_4_5c8_5c3a4a6_2e9g5e7_2a4a9c6_5c6_1_3d8c1_5b4a"
+        },
+        {
+          "seedId": "3x3#task2-trivial-4",
+          "gameId": "3x3:e4b5a2a1b3b3b6_2c9b1d6b5_3_2a6_8_7b9d5b2c4_1b7b6b9a5a9b8e"
+        }
+      ]
+    },
+    {
+      "band": 2,
+      "grade": "basic",
+      "params": "3x3db",
+      "canonicalParams": "3x3db",
+      "seed": "task2-basic",
+      "solosolverRating": "Basic",
+      "samples": [
+        {
+          "seedId": "3x3db#task2-basic",
+          "gameId": "3x3:a2_8b9c3c2b8c4a1a9c7d8_6c9a4a5c1_3d4c2a5a6c4b8c3c1b7_5a"
+        },
+        {
+          "seedId": "3x3db#task2-basic-1",
+          "gameId": "3x3:d9a1_4_6_7d4_5d8_3_6d8_3d6a9i6a4d8_2d3_6_4d5_8d1_1_7_6a5d"
+        },
+        {
+          "seedId": "3x3db#task2-basic-2",
+          "gameId": "3x3:f5_3_6b9_6_7c2d5_2_4d4c7a9_8g5_1a6c3d1_7_6d7c2_3_9b4_8_2f"
+        },
+        {
+          "seedId": "3x3db#task2-basic-3",
+          "gameId": "3x3:a9a5c2d1b5c5_4_7a6_1b3a6b2b8i8b4b3a1b7_3a1_2_4c1b8d3c9a1a"
+        },
+        {
+          "seedId": "3x3db#task2-basic-4",
+          "gameId": "3x3:b6a8_5j5_7_4e2a6_3a1a9_4d2a5a6a3d1_2a7a4_6a9e2_1_8j4_1a3b"
+        }
+      ]
+    },
+    {
+      "band": 3,
+      "grade": "intermediate",
+      "params": "3x3di",
+      "canonicalParams": "3x3di",
+      "seed": "task2-intermediate",
+      "solosolverRating": "Intermediate",
+      "samples": [
+        {
+          "seedId": "3x3di#task2-intermediate",
+          "gameId": "3x3:d6a8e2a8a7a8e1a4d1_4b6a1_5c3_4a3b8_7d5a3e9a6a4a2e9a3d"
+        },
+        {
+          "seedId": "3x3di#task2-intermediate-1",
+          "gameId": "3x3:a6_9a3a7d7_1_9e4a2d8f4_2_6d1d7_2_4f9d5a8e6_1_5d5a4a2_7a"
+        },
+        {
+          "seedId": "3x3di#task2-intermediate-2",
+          "gameId": "3x3:c2a7b4_1a7_8c5b5f2_8b9_2f2_4a3_8f6_8b7_9f7b3c9_6a8_2b7a4c"
+        },
+        {
+          "seedId": "3x3di#task2-intermediate-3",
+          "gameId": "3x3:c4a7a9a1a4a8_3a6e2d2a5a6e3a9a2a5e4a8a3d5e5a2_3a9a4a1a8a4c"
+        },
+        {
+          "seedId": "3x3di#task2-intermediate-4",
+          "gameId": "3x3:d7e5_7a2b4_9c8a9a7c9b8c8a3_7a2_4a6c1b2c7a3a6c5_2b8a3_6e5d"
+        }
+      ]
+    },
+    {
+      "band": 4,
+      "grade": "advanced",
+      "params": "3x3da",
+      "canonicalParams": "3x3da",
+      "seed": "task2-advanced",
+      "solosolverRating": "Advanced",
+      "samples": [
+        {
+          "seedId": "3x3da#task2-advanced",
+          "gameId": "3x3:b3a5_8_6e3_7c4a2_8e3a3_9_8_2e5e3e1_3_8_9a3e1_4a6c8_9e2_7_3a9b"
+        },
+        {
+          "seedId": "3x3da#task2-advanced-1",
+          "gameId": "3x3:8_1_6j8a1_6_2h8a5a4_2c3b3_5a9_8b6c1_8a7a2h4_6_7a9j9_1_7"
+        },
+        {
+          "seedId": "3x3da#task2-advanced-2",
+          "gameId": "3x3:a5_3a1d2b7b9c8c2a1e7a5a1d9d1a4a3e4a6c8c5b7b9d4a6_3a"
+        },
+        {
+          "seedId": "3x3da#task2-advanced-3",
+          "gameId": "3x3:d5_6b9_7_1a9d2a9d4_5f2b7a7e4a1b8f2_6d3a9d3a2_5_8b2_6d"
+        },
+        {
+          "seedId": "3x3da#task2-advanced-4",
+          "gameId": "3x3:2a1a7a8_4f9b7a7b1c9_5_6c1_2m8_9c3_6_9c5b8a3b2f8_7a6a5a2"
+        }
+      ]
+    },
+    {
+      "band": 5,
+      "grade": "extreme",
+      "params": "3x3de",
+      "canonicalParams": "3x3de",
+      "seed": "task2-extreme",
+      "solosolverRating": "Extreme",
+      "samples": [
+        {
+          "seedId": "3x3de#task2-extreme",
+          "gameId": "3x3:a1a8a6c5a6a4_3e7g4_2_9f3_1_4a5_8_7f1_3_4g7e3_7a5a1c5a2a3a"
+        },
+        {
+          "seedId": "3x3de#task2-extreme-1",
+          "gameId": "3x3:a2a8e5a1a3c4a3_4_9e4_9f8b3c2b6f5_9e1_7_8a8c5a9a6e8a4a"
+        },
+        {
+          "seedId": "3x3de#task2-extreme-2",
+          "gameId": "3x3:d8e1_6_7_9b8_5_7d2c2e4_5a1a4c7a9a5_9e8c5d7_5_3b7_1_8_6e6d"
+        },
+        {
+          "seedId": "3x3de#task2-extreme-3",
+          "gameId": "3x3:a8b3_6_1b6e9d4b8b6g1_9_1b9a7b8_9_3g4b7b5d3e7b7_5_2b9a"
+        },
+        {
+          "seedId": "3x3de#task2-extreme-4",
+          "gameId": "3x3:b7b4_1_9a1d7a4b8c9e8_2e7_4e1_3e6_2e3c2b7a4d1a5_3_7b9b"
+        }
+      ]
+    }
+  ]
+}
