@@ -1,0 +1,156 @@
+{
+  "puzzlesCommit": "616da16f25da428ccda805536209095bd062676e",
+  "samplesPerGrade": 5,
+  "grades": [
+    {
+      "band": 1,
+      "grade": "trivial",
+      "params": "2x3dt",
+      "canonicalParams": "2x3",
+      "seed": "task3-2x3-trivial",
+      "solosolverRating": "Trivial",
+      "samples": [
+        {
+          "seedId": "2x3#task3-2x3-trivial",
+          "gameId": "2x3:e3_5_1b2_6a6a5d2a3a6_3b4_5_4e"
+        },
+        {
+          "seedId": "2x3#task3-2x3-trivial-1",
+          "gameId": "2x3:c3b1b4f3_2_2_6f4b5b2c"
+        },
+        {
+          "seedId": "2x3#task3-2x3-trivial-2",
+          "gameId": "2x3:a2b5_1a5a2d5f6d2a1a1_6b3a"
+        },
+        {
+          "seedId": "2x3#task3-2x3-trivial-3",
+          "gameId": "2x3:d6_3e4b2a1_6_4_1a3b2e6_5d"
+        },
+        {
+          "seedId": "2x3#task3-2x3-trivial-4",
+          "gameId": "2x3:b1a5c6b4b2a1b1a6b2b4c6a3b"
+        }
+      ]
+    },
+    {
+      "band": 2,
+      "grade": "basic",
+      "params": "2x3db",
+      "canonicalParams": "2x3db",
+      "seed": "task3-2x3-basic",
+      "solosolverRating": "Basic",
+      "samples": [
+        {
+          "seedId": "2x3db#task3-2x3-basic",
+          "gameId": "2x3:a1d4b2_5a1c4b4c6a3_1b5d1a"
+        },
+        {
+          "seedId": "2x3db#task3-2x3-basic-1",
+          "gameId": "2x3:a4d3_2d4b5d5b3d3_5d1a"
+        },
+        {
+          "seedId": "2x3db#task3-2x3-basic-2",
+          "gameId": "2x3:c2a3d5_1_4c1b3c5_6_5d2a4c"
+        },
+        {
+          "seedId": "2x3db#task3-2x3-basic-3",
+          "gameId": "2x3:g3a6a1_3a2a4b4a2a3_6a5a3g"
+        },
+        {
+          "seedId": "2x3db#task3-2x3-basic-4",
+          "gameId": "2x3:f6b2_3_1a1a5d6a1a5_2_3b4f"
+        }
+      ]
+    },
+    {
+      "band": 3,
+      "grade": "intermediate",
+      "params": "2x3di",
+      "canonicalParams": "2x3di",
+      "seed": "task3-2x3-intermediate",
+      "solosolverRating": "Intermediate",
+      "samples": [
+        {
+          "seedId": "2x3di#task3-2x3-intermediate",
+          "gameId": "2x3:b1b4_6b5_1e5b1e5_2b1_1b3b"
+        },
+        {
+          "seedId": "2x3di#task3-2x3-intermediate-1",
+          "gameId": "2x3:b3b2a2b5a2b4d4b1a6b1a3b2b"
+        },
+        {
+          "seedId": "2x3di#task3-2x3-intermediate-2",
+          "gameId": "2x3:a2c1c2_5a4_3h3_4a4_2c6c2a"
+        },
+        {
+          "seedId": "2x3di#task3-2x3-intermediate-3",
+          "gameId": "2x3:a1b4a4a6f1a3_1a3f5a2a2b6a"
+        },
+        {
+          "seedId": "2x3di#task3-2x3-intermediate-4",
+          "gameId": "2x3:b2d3b4b1c3_2c1b4b2d5b"
+        }
+      ]
+    },
+    {
+      "band": 4,
+      "grade": "advanced",
+      "params": "2x3da",
+      "canonicalParams": "2x3da",
+      "seed": "task3-2x3-advanced",
+      "solosolverRating": "Advanced",
+      "samples": [
+        {
+          "seedId": "2x3da#task3-2x3-advanced",
+          "gameId": "2x3:a1_4c5g6a2b3a6g1c2_4a"
+        },
+        {
+          "seedId": "2x3da#task3-2x3-advanced-1",
+          "gameId": "2x3:2a1_4a5g2_3b1_6b2_4g1a2_3a4"
+        },
+        {
+          "seedId": "2x3da#task3-2x3-advanced-2",
+          "gameId": "2x3:f1a2_6b5a1_2d3_1a5b5_3a2f"
+        },
+        {
+          "seedId": "2x3da#task3-2x3-advanced-3",
+          "gameId": "2x3:3_5f2c6c2_1_2_1c5c2f1_3"
+        },
+        {
+          "seedId": "2x3da#task3-2x3-advanced-4",
+          "gameId": "2x3:5f1a5d3a2b2a3d4a1f6"
+        }
+      ]
+    },
+    {
+      "band": 5,
+      "grade": "extreme",
+      "params": "2x3de",
+      "canonicalParams": "2x3de",
+      "seed": "task3-2x3-extreme",
+      "solosolverRating": "Extreme",
+      "samples": [
+        {
+          "seedId": "2x3de#task3-2x3-extreme",
+          "gameId": "2x3:a6_3a5_4g4a5d6a4g6_5a3_1a"
+        },
+        {
+          "seedId": "2x3de#task3-2x3-extreme-1",
+          "gameId": "2x3:e5c3_4a4_5c3_6c5_1a6_3c1e"
+        },
+        {
+          "seedId": "2x3de#task3-2x3-extreme-2",
+          "gameId": "2x3:6c1f5a4a6d2a3a5f1c6"
+        },
+        {
+          "seedId": "2x3de#task3-2x3-extreme-3",
+          "gameId": "2x3:2c5c3c4b3d1b6c6c1c2"
+        },
+        {
+          "seedId": "2x3de#task3-2x3-extreme-4",
+          "gameId": "2x3:a5_4_6b6_2h4b3h2_1b2_3_6a"
+        }
+      ]
+    }
+  ]
+}

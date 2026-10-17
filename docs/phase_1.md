@@ -8,7 +8,7 @@ Phase 1 ships a playable Sudoku on your phone, fed by puzzle packs generated off
 
 The app is an infinite, swipeable feed of mini puzzle games, built for casual play first. The MVP games are Sudoku, Rectangles and Queens. Skill tests (blackjack, poker hands, chess moves) come after launch.
 
-Phase 1 builds one game end to end: Sudoku puzzles are generated and verified on a laptop, shipped inside the app as JSON packs, and played on a real phone. Visuals stay plain; polish comes later.
+Phase 1 builds one game end to end: Sudoku, in two sizes, 9×9 and 6×6. Puzzles are generated and verified on a laptop, shipped inside the app as JSON packs, and played on a real phone. Visuals stay plain; polish comes later.
 
 **Out of scope for Phase 1:** the swipe feed, other games, player ratings, accounts or any backend, analytics, crash reporting, ads, subscriptions, sound, and visual polish. If a task seems to need one of these, stop and ask.
 
@@ -23,7 +23,7 @@ The app is TypeScript on Expo SDK 57; the puzzle pipeline is Python plus Simon T
 | Framework | Expo SDK 57 (React Native 0.86, React 19.2) | SDK 58 went stable on 2026-10-15, but the store Expo Go stays on SDK 57 until its SDK 58 build ships. Stay on 57 until then, and do the upgrade as its own task ([SDK list](https://expo.dev/sdk)). Use `expo` 57.0.9 or later: earlier 57.x releases have a memory regression with Reanimated ([changelog](https://expo.dev/changelog/sdk-57)). |
 | Language | TypeScript, `strict: true` | No `any` without a comment explaining why. |
 | Navigation | Expo Router | File-based routes in `src/app/`. Phase 1 has one screen. |
-| Board rendering | Plain React Native `View` and `Pressable` | 81 cells don't need a canvas. Skia arrives in Phase 3 for drag-to-draw games (Rectangles, Queens). |
+| Board rendering | Plain React Native `View` and `Pressable` | 81 cells (36 on 6×6) don't need a canvas. Skia arrives in Phase 3 for drag-to-draw games (Rectangles, Queens). |
 | Game logic | Pure TypeScript module, no React imports | All rules, moves and checks live here so Jest can test them. |
 | State | Zustand | One store per game screen; it calls the engine and holds its state. |
 | Persistence | `@react-native-async-storage/async-storage` | Saves the in-progress game and a results log. Works in Expo Go. |
@@ -116,8 +116,8 @@ Puzzles are generated and verified on the laptop; the phone only reads finished 
 
 - **Source:** Tatham's collection as a git submodule in `pipeline/vendor/puzzles`, built with CMake. The Unix (GTK) builds accept `--generate n` followed by game parameters and print n game IDs ([man page](https://manpages.ubuntu.com/manpages/noble/man6/sgt-loopy.6.html)). On macOS his CMake builds only the Cocoa app, which has no `--generate`. So `pipeline/gen/solo_gen.c` runs the same loop as `gtk.c`'s `--generate` from the command line: `solo-gen <n> <params> <seed>`. The seed is required, because Tatham's no-op frontend always returns the same random seed. Tatham's `solosolver -g` from the same build cross-checks each puzzle's grade. Details are in `pipeline/README.md`.
 - **Difficulty:** Solo grades each puzzle by the deduction techniques it needs. From Intermediate up, players must reason about sets of candidates; Unreasonable requires guessing and backtracking ([Solo docs](https://www.chiark.greenend.org.uk/~sgtatham/puzzles/doc/solo.html)). Never use Unreasonable.
-- **Speed:** hard grades take more attempts to generate, but on the M4 100 Advanced puzzles take about 3 s. Parallel processes per band are optional. Cache raw output anyway.
-- **Verify before coding:** read `solo.c` and run the binary to confirm the parameter string for a 9×9 grid at each grade and the game ID format. Record both in a pytest fixture. Don't guess either. Done in Task 2: see `pipeline/README.md` and `pipeline/tests/fixtures/solo_samples.json`.
+- **Speed:** hard grades take more attempts to generate. On the M4, 100 Advanced 9×9 puzzles take about 3 s, but 6×6 Advanced takes about 0.5 s per puzzle (about 50 s for 100). Running bands in parallel processes helps there. Cache raw output anyway.
+- **Verify before coding:** read `solo.c` and run the binary to confirm the parameter string for a 9×9 grid at each grade and the game ID format. Record both in a pytest fixture. Don't guess either. Done in Task 2: see `pipeline/README.md` and `pipeline/tests/fixtures/solo_samples.json`. The 6×6 equivalents were recorded in Task 3 in `solo_samples_2x3.json`.
 - **Fallback:** if the native `solo-gen` build breaks, run Ubuntu's `sgt-puzzles` package in Docker (binary `sgt-solo`), which has the same `--generate` option.
 
 ### Difficulty bands
@@ -130,18 +130,31 @@ Puzzles are generated and verified on the laptop; the phone only reads finished 
 | 4 | Advanced | Expert |
 | 5 | Extreme | Master |
 
-Confirmed against `solo.c` at commit `616da16`: the five grade names match. The params are `3x3dt`, `3x3db`, `3x3di`, `3x3da` and `3x3de`.
+Confirmed against `solo.c` at commit `616da16`: the five grade names match. The params are `3x3dt`, `3x3db`, `3x3di`, `3x3da` and `3x3de` for 9×9, and `2x3dt` to `2x3de` for 6×6. Both sizes use the same five bands and the same app labels.
+
+### Grid sizes
+
+The app plays 9×9 and 6×6 Sudoku.
+
+| Size | Solo params | Digits | Boxes | Pack file |
+| --- | --- | --- | --- | --- |
+| 9×9 | `3x3` | 1–9 | nine, 3 wide and 3 tall | `pack-9x9-001.json` |
+| 6×6 | `2x3` | 1–6 | six, 3 wide and 2 tall | `pack-6x6-001.json` |
+
+- Each pack holds one size and says which in its `grid` field (see Pack format). The pipeline builds one size per run.
+- Same bands and labels for both sizes.
+- The player doesn't choose a size. "Next puzzle" picks 9×9 or 6×6 at random within the chosen band (see Persistence for the no-repeat rule).
 
 ### Steps
 
 1. **Generate** game IDs per band with Solo; save them to `pipeline/out/raw/` (gitignored).
-2. **Parse** each game ID into an 81-character givens string: row-major, `0` for an empty cell.
+2. **Parse** each game ID into a givens string with one character per cell (81 for 9×9, 36 for 6×6): row-major, `0` for an empty cell.
 3. **Verify** with our own solver: no duplicate digit in any row, column or box; exactly one solution (stop searching at two); the solution is a complete valid grid that matches every given.
 4. **Deduplicate** by givens string, including against packs already in `assets/`.
 5. **Write** the pack, sorted by band then id. Same input must produce a byte-identical file.
 6. **Report** counts per band and rejects by reason. Any uniqueness failure exits non-zero: Solo guarantees uniqueness, so a failure means a parsing bug.
 
-Phase 1 target: 100 puzzles per band, 500 total, in `assets/puzzles/sudoku/pack-001.json` (about 110 KB).
+Phase 1 target: 100 puzzles per band for each size, 1,000 total. They go in `assets/puzzles/sudoku/pack-9x9-001.json` (about 110 KB) and `pack-6x6-001.json` (about 80 KB).
 
 ### Pack format
 
@@ -149,12 +162,13 @@ Phase 1 target: 100 puzzles per band, 500 total, in `assets/puzzles/sudoku/pack-
 {
   "schemaVersion": 1,
   "game": "sudoku",
-  "packId": "sudoku-001",
+  "packId": "sudoku-9x9-001",
+  "grid": { "size": 9, "boxWidth": 3, "boxHeight": 3 },
   "createdAt": "2026-10-17",
   "generator": { "name": "tatham-solo", "version": "<puzzles git commit>" },
   "puzzles": [
     {
-      "id": "sudoku-001-0001",
+      "id": "sudoku-9x9-001-0001",
       "band": 1,
       "grade": "trivial",
       "givens": "530070000600195000098000060800060003400803001700020006060000280000419005000080079",
@@ -168,15 +182,16 @@ Phase 1 target: 100 puzzles per band, 500 total, in `assets/puzzles/sudoku/pack-
 
 | Field | Meaning |
 | --- | --- |
-| `id` | Permanent. Never changed or reused once shipped, because saved games and results reference it. |
+| `grid` | Pack level: the shape of every puzzle in the pack. `{ "size": 9, "boxWidth": 3, "boxHeight": 3 }` or `{ "size": 6, "boxWidth": 3, "boxHeight": 2 }`. Box sides are explicit because 36 cells alone don't say which way the boxes run. |
+| `id` | Permanent, and includes the size (`sudoku-9x9-001-0001`, `sudoku-6x6-001-0001`). Never changed or reused once shipped, because saved games and results reference it. |
 | `band` | 1–5, from the table above. |
 | `grade` | Solo's grade, lowercase. |
-| `givens` | 81 characters, row-major, `0` = empty. |
-| `solution` | 81 characters, the unique solution. |
+| `givens` | One character per cell (`size`², so 81 or 36), row-major, `0` = empty. |
+| `solution` | Same length as `givens`: the unique solution. |
 | `clues` | Number of non-zero givens. |
 | `sourceId` | Solo's game ID, so any puzzle can be regenerated. |
 
-The app's loader rejects a pack whose `schemaVersion` it doesn't know. The sample puzzle values are illustrative.
+The app's loader rejects a pack whose `schemaVersion` it doesn't know, or whose `grid` isn't one of the two shapes above. The sample puzzle values are illustrative.
 
 ## App behavior
 
@@ -184,9 +199,9 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 
 ### Screen
 
-- **Top bar:** band label, timer (mm:ss), mistake count, and a band picker for testing. Adaptive difficulty replaces the picker in Phase 2.
-- **Board:** a square 9×9 grid as wide as the screen allows, with thicker lines between the 3×3 boxes.
-- **Number pad:** digits 1–9. A digit's button dims once all nine of it are placed correctly.
+- **Top bar:** band label, timer (mm:ss), mistake count, and a band picker for testing. Adaptive difficulty replaces the picker in Phase 2. There's no size picker; see Grid sizes.
+- **Board:** a square grid, 9×9 or 6×6, as wide as the screen allows, with thicker lines between the boxes (3×3 on 9×9; 3 wide and 2 tall on 6×6).
+- **Number pad:** digits 1 to the grid size (1–9 or 1–6). A digit's button dims once every copy of it (nine, or six) is placed correctly.
 - **Toolbar:** Undo, Erase, and a Notes toggle.
 - **Solved:** show the time and mistake count with a "Next puzzle" button.
 
@@ -200,15 +215,18 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 | Notes on, tap a digit | Toggles that pencil mark in the selected empty cell. |
 | Erase | Clears the selected cell's digit or notes. Given cells can't be erased. |
 | Undo | Reverts the last digit, note or erase, with no depth limit. The mistake count never goes down. |
-| All 81 cells correct | Puzzle solved: timer stops, input locks, results are saved. |
+| Every cell correct (81, or 36) | Puzzle solved: timer stops, input locks, results are saved. |
 | App goes to background | Timer pauses; it resumes on return. |
 
 ### Persistence
 
 - Save the game after every move: puzzle id, cells, notes, mistakes, elapsed time and undo history. On launch, resume an unsolved saved game.
-- Append to a results log on every solve: puzzle id, band, solved-at time, elapsed milliseconds, mistakes.
+- Append to a results log on every solve: puzzle id, grid size, band, solved-at time, elapsed milliseconds, mistakes.
 - Also log an abandon when "Next puzzle" or the band picker leaves a game unsolved, with elapsed time and mistakes. Phase 3's rating will use these.
-- Don't serve a played puzzle again until every puzzle in its band has been played.
+- Next puzzle, and the no-repeat rule:
+  - "Next puzzle" picks a size at random (even odds) among the sizes that still have unplayed puzzles in the band. It then serves the next unplayed puzzle of that size.
+  - No puzzle repeats until every puzzle in the band, both sizes, has been played. Then that band starts over.
+  - The random source is passed in, so tests can fix it.
 - Prefix every storage key with `v1:` so the format can change later.
 
 ### Engine design
@@ -216,13 +234,16 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 `engine.ts` holds every rule as pure functions that return a new state and never mutate. No React, no storage, no clock: callers pass in anything time-based. Selection and the timer live in the Zustand store, not the engine. Components read the store and contain no game rules.
 
 ```ts
-export type Digit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type Digit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9; // 6×6 uses 1–6
+
+export type GridSize = 6 | 9; // boxes: 3×3 on 9×9; 3 wide × 2 tall on 6×6
 
 export interface Puzzle {
   id: string;
   band: 1 | 2 | 3 | 4 | 5;
-  givens: string;   // 81 chars, '0' = empty
-  solution: string; // 81 chars
+  size: GridSize;
+  givens: string;   // size² chars, '0' = empty
+  solution: string; // size² chars
 }
 
 export interface CellState {
@@ -234,7 +255,7 @@ export interface CellState {
 
 export interface GameState {
   puzzle: Puzzle;
-  cells: CellState[];       // 81, row-major
+  cells: CellState[];       // size², row-major
   mistakes: number;
   history: CellState[][];   // snapshots for undo
   solved: boolean;
@@ -264,17 +285,18 @@ A task is done only when `npm run check` passes and, if the pipeline changed, `u
 | `pipeline/` | `uv run cmake -S gen -B out/build -DCMAKE_BUILD_TYPE=Release && uv run cmake --build out/build --target solo-gen solosolver` | Build the generator and Tatham's grader. |
 | `pipeline/` | `uv run pytest` | Pipeline tests. |
 | `pipeline/` | `uv run ruff check . && uv run ruff format --check .` | Python lint and format. |
-| `pipeline/` | `uv run python -m sudoku.build_pack --per-band 100 --out ../assets/puzzles/sudoku/pack-001.json` | Build a pack and print the report. |
+| `pipeline/` | `uv run python -m sudoku.build_pack --grid 3x3 --per-band 100 --out ../assets/puzzles/sudoku/pack-9x9-001.json` | Build the 9×9 pack and print the report. |
+| `pipeline/` | `uv run python -m sudoku.build_pack --grid 2x3 --per-band 100 --out ../assets/puzzles/sudoku/pack-6x6-001.json` | Build the 6×6 pack and print the report. |
 
 ## Definition of done
 
 Phase 1 closes when every box below is ticked on a real phone, not a simulator.
 
-- [ ] `pack-001.json` holds 100 puzzles in each of bands 1–5, built by the pipeline with zero uniqueness failures.
-- [ ] Rebuilding the pack from the same raw output produces an identical file.
+- [ ] `pack-9x9-001.json` and `pack-6x6-001.json` each hold 100 puzzles in each of bands 1–5, built by the pipeline with zero uniqueness failures.
+- [ ] Rebuilding each pack from the same raw output produces an identical file.
 - [ ] `uv run pytest` and `npm run check` pass.
-- [ ] Engine tests cover placing, wrong digits and mistake counting, notes and note cleanup, erase, undo, given-cell protection and solve detection.
-- [ ] A full puzzle can be played from start to solved screen on your phone.
+- [ ] Engine tests cover placing, wrong digits and mistake counting, notes and note cleanup, erase, undo, given-cell protection and solve detection, on both grid sizes.
+- [ ] A full 9×9 puzzle and a full 6×6 puzzle can each be played from start to solved screen on your phone.
 - [ ] Killing the app mid-game and reopening it restores the board, notes, mistakes and timer.
 - [ ] Solves and abandons appear in the results log with the right fields.
 - [ ] No file in `assets/puzzles/` was edited by hand.
@@ -285,11 +307,11 @@ Run each task as its own plan-mode session, and commit when it passes its checks
 
 1. **Scaffold.** Create the Expo app with strict TypeScript, Prettier, Jest (`jest-expo`) and `npm run check`. Add `CLAUDE.md` pointing at this file. Confirm it opens in Expo Go on your phone.
 2. **Tatham spike.** Add the submodule and build Solo, or use the Docker fallback. Confirm the parameter strings and game ID format, generate 5 IDs per grade, and record the findings in `pipeline/README.md` plus a pytest fixture.
-3. **Solver and verification.** A Python solver that counts solutions up to 2, plus validity and solution checks. Test with known unique, non-unique and invalid grids.
-4. **Pack builder.** Parse, verify, deduplicate, write deterministically, report. Build `pack-001.json`.
-5. **Types and loader.** TypeScript types matching the pack, a `schemaVersion` check, and next-puzzle selection by band, with tests.
-6. **Engine.** Every rule in the Rules table, written test-first.
-7. **Board UI.** Board, cells, number pad and toolbar, with selection highlights, wired through the Zustand store.
+3. **Solver and verification.** A Python solver that counts solutions up to 2, plus validity and solution checks. Test with known unique, non-unique and invalid grids, for 9×9 and 6×6.
+4. **Pack builder.** Parse, verify, deduplicate, write deterministically, report. Build `pack-9x9-001.json` and `pack-6x6-001.json`.
+5. **Types and loader.** TypeScript types matching the pack, the `schemaVersion` and `grid` checks, and next-puzzle selection by band with the random size pick, with tests.
+6. **Engine.** Every rule in the Rules table, written test-first, for both sizes.
+7. **Board UI.** Board, cells, number pad and toolbar for 9×9 and 6×6, with selection highlights, wired through the Zustand store.
 8. **Game flow.** Mistakes, timer with background pause, solved screen, next puzzle, band picker.
 9. **Persistence.** Save and resume, the results and abandon log, and the no-repeat rule.
 10. **Device pass.** Play full puzzles on iPhone and Android, fix anything slow or wrong, and tick the definition of done.
