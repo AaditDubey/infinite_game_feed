@@ -41,3 +41,10 @@ example
 # generated native folders
 /ios
 /android
+
+# Python pipeline: build output, raw generator output, environment, caches
+pipeline/out/
+pipeline/.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

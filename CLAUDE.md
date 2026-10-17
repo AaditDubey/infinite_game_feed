@@ -6,14 +6,17 @@ An infinite, swipeable feed of mini puzzle games. Phase 1 builds Sudoku end to e
 
 ## Commands
 
-| Command                        | Purpose                                                                           |
-| ------------------------------ | --------------------------------------------------------------------------------- |
-| `npm run check`                | Typecheck, lint, format check, tests. Must pass before a task is done.            |
-| `npm run format`               | Apply Prettier formatting.                                                        |
-| `npx expo start`               | Dev server; open on the phone with Expo Go.                                       |
-| `npx expo install <pkg>`       | Add a dependency at the SDK-matched version (`--dev` for dev tooling). Ask first. |
-| `npx expo-doctor`              | Check that dependency versions match the SDK.                                     |
-| `cd pipeline && uv run pytest` | Pipeline tests (from Task 2 on).                                                  |
+| Command                                                                                                                                     | Purpose                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `npm run check`                                                                                                                             | Typecheck, lint, format check, tests. Must pass before a task is done.            |
+| `npm run format`                                                                                                                            | Apply Prettier formatting.                                                        |
+| `npx expo start`                                                                                                                            | Dev server; open on the phone with Expo Go.                                       |
+| `npx expo install <pkg>`                                                                                                                    | Add a dependency at the SDK-matched version (`--dev` for dev tooling). Ask first. |
+| `npx expo-doctor`                                                                                                                           | Check that dependency versions match the SDK.                                     |
+| `cd pipeline && uv run pytest`                                                                                                              | Pipeline tests. Binary tests skip until `solo-gen` is built.                      |
+| `cd pipeline && uv run ruff check . && uv run ruff format --check .`                                                                        | Python lint and format.                                                           |
+| `cd pipeline && uv run cmake -S gen -B out/build -DCMAKE_BUILD_TYPE=Release && uv run cmake --build out/build --target solo-gen solosolver` | Build the generator (see `pipeline/README.md`).                                   |
+| `git submodule update --init`                                                                                                               | Fetch Tatham's source into `pipeline/vendor/puzzles` after cloning.               |
 
 ## Working rules
 
@@ -31,5 +34,7 @@ The spec's "Rules for agents" section is authoritative. In short:
 
 - Expo SDK 57 is pinned until the store Expo Go moves to SDK 58. That upgrade is its own task.
 - Node 24 LTS (`.nvmrc`). The owner's Mac is an Apple M4, but Homebrew is an Intel (x86_64) install in `/usr/local` that runs under Rosetta. Node is therefore the native arm64 nodejs.org build in `~/.local/opt/`, not Homebrew's. Check `node -p process.arch` prints `arm64` before installing packages; an x64 Node installs Intel builds of native modules.
+- uv is the native arm64 release in `~/.local/bin`, which comes before Homebrew's x86_64 uv on PATH. Its Python is 3.13 arm64. Check that `uv run python -c 'import platform; print(platform.machine())'` prints `arm64`. A plain `uv python install 3.13` reuses the old x86_64 download, so request `cpython-3.13-macos-aarch64-none` explicitly.
+- Never use Solo's Unreasonable grade, and always pass `solo-gen` a seed (see `pipeline/README.md`).
 - iOS Expo Go requires the same Expo account in `npx expo login` and in the Expo Go app.
 - TypeScript 6 doesn't auto-include `@types` packages, so test globals come from `"types": ["jest"]` in `tsconfig.json`.
