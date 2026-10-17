@@ -1,6 +1,6 @@
 # Puzzle pipeline
 
-Generates Sudoku puzzles with Simon Tatham's Solo, verifies them with our own solver, and writes the JSON packs in `assets/puzzles/`. This file records what Task 2 (the Tatham spike) found; the spec is `docs/phase_1.md`.
+Generates Sudoku puzzles with Simon Tatham's Solo, verifies them with our own solver, and writes the JSON packs in `assets/puzzles/`. This file records what Task 2 (the Tatham spike) and Task 3 (solver and verification) found; the spec is `docs/phase_1.md`.
 
 ## Generator source
 
@@ -64,6 +64,25 @@ The grade names in `solo.c` match the spec's bands one to one. `3x3` means a 9×
 - Solo leaves default settings out when it writes params, which is why Trivial's seed IDs start with plain `3x3#`.
 - `new_game_desc` keeps generating until a puzzle grades *exactly* at the requested level. `solosolver -g` agreed on all 25 samples.
 
+## 6×6 grids (Solo `2x3`)
+
+Solo's `2x3` is a 6×6 grid with digits 1–6, divided into six blocks that are **3 wide and 2 tall**. The params count blocks, not cells: 2 blocks across and 3 down. Both `solo.c` (`whichblock = (y / c) * c + (x / r)` with `c = 2`, `r = 3`) and Solo's own docs ("a 6×6 grid divided into six 3×2 blocks") agree. In our code this is `SUDOKU_6X6 = Shape(block_width=3, block_height=2)`.
+
+All five grades can be generated at 6×6:
+
+| Solo grade   | Params  | Seed IDs start with | Time for 20 puzzles |
+| ------------ | ------- | ------------------- | ------------------- |
+| Trivial      | `2x3dt` | `2x3#`              | 0.03 s              |
+| Basic        | `2x3db` | `2x3db#`            | 0.03 s              |
+| Intermediate | `2x3di` | `2x3di#`            | 0.65 s              |
+| Advanced     | `2x3da` | `2x3da#`            | 10.3 s              |
+| Extreme      | `2x3de` | `2x3de#`            | 0.15 s              |
+
+- Advanced is the slow one at 6×6, about 0.5 s per puzzle.
+- Game IDs look like `2x3:e3_5_1b2_6a6a5d2a3a6_3b4_5_4e`, with the same run-length format below but 36 cells.
+- `solosolver -g` agreed on all 25 recorded 6×6 samples.
+- Whether 6×6 puzzles ship in packs and the app is still open (Tasks 4–7).
+
 ## Game ID format
 
 A game ID is `3x3:<desc>`. The `3x3:` prefix leaves out the grade, while the seed ID keeps it. `<desc>` lists the 81 cells row by row:
@@ -104,17 +123,33 @@ Measured on the M4, native arm64, single process:
 
 A 500-puzzle pack takes a few seconds, so parallel processes per band are optional.
 
+## Verification (our own solver)
+
+`sudoku/verify.py` decides whether a puzzle may go into a pack. It uses only our code, never Tatham's, so a bug in parsing or in Solo can't vouch for itself. `verify_puzzle(givens, shape)` returns the unique solution, or raises `VerificationError` with one of these reasons:
+
+| Reason               | Meaning                                                                      |
+| -------------------- | ---------------------------------------------------------------------------- |
+| `malformed`          | Not one character per cell, each `0` up to the grid size.                    |
+| `duplicate-given`    | A digit appears twice in a row, column or box, e.g. "row 3 has two 5s".      |
+| `no-solution`        | Nothing fits.                                                                |
+| `multiple-solutions` | At least two grids fit. The search stops at two.                             |
+| `bad-solution`       | The solver's answer isn't a complete valid grid matching every given: a bug. |
+
+- **Solver** (`sudoku/solver.py`): backtracking. Each row, column and box keeps a bitmask of its used digits, and the search always fills the cell with the fewest candidates first.
+- **Shapes** (`sudoku/shape.py`): `SUDOKU_9X9` and `SUDOKU_6X6`. Pass the shape explicitly for 6×6, because 36 cells alone can't say whether the blocks are 3×2 or 2×3.
+- **Speed:** all 25 recorded 9×9 puzzles verify in about 12 ms (0.5 ms each), and the 25 6×6 puzzles in about 2 ms.
+
 ## Recorded samples and tests
 
-- `scripts/record_solo_samples.py` writes `tests/fixtures/solo_samples.json`: 5 IDs per grade from seeds `task2-<grade>`. It refuses to write the file unless `solosolver -g` agrees with every grade.
+- `scripts/record_solo_samples.py` writes the sample fixtures. It refuses to write a file unless `solosolver -g` agrees with every grade.
+  - `--grid 3x3` (the default) writes `tests/fixtures/solo_samples.json`: 5 IDs per grade, seeds `task2-<grade>`.
+  - `--grid 2x3` writes `tests/fixtures/solo_samples_2x3.json`: seeds `task3-2x3-<grade>`.
 - `uv run pytest` checks:
-  - the bands and params;
-  - the game ID format (81 cells, at least 17 givens);
-  - the seed scheme;
-  - that the same seed regenerates the fixture exactly;
-  - `solosolver`'s grades.
+  - **samples:** the bands and params, the game ID format (81 or 36 cells; at least 17 givens for 9×9), the seed scheme, that the same seed regenerates each fixture exactly, and `solosolver`'s grades;
+  - **solver and verifier:** grids built in code, so every expected answer is provable. These include solved grids, one blank per box (unique), the empty grid and a cleared band (many solutions), a "deadly rectangle" (exactly two), duplicates in a row, column or box, impossible cells, and malformed input, all for both shapes;
+  - **real puzzles:** all 50 recorded puzzles have exactly one solution, and it matches the solution `solosolver` prints.
 
-  The binary tests skip until `solo-gen` is built.
+  The binary tests skip until `solo-gen` is built. `tests/solo_ids.py` decodes game IDs for the tests only; Task 4's `tatham.py` replaces it.
 - Lint and format: `uv run ruff check . && uv run ruff format --check .`
 
 ## Backup: Docker

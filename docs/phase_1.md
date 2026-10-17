@@ -132,6 +132,10 @@ Puzzles are generated and verified on the laptop; the phone only reads finished 
 
 Confirmed against `solo.c` at commit `616da16`: the five grade names match. The params are `3x3dt`, `3x3db`, `3x3di`, `3x3da` and `3x3de`.
 
+### Grid sizes
+
+The pipeline's solver and verifier handle 9×9 and 6×6 grids. 6×6 is Solo's `2x3`: digits 1–6, in six blocks 3 wide and 2 tall. All five grades can be generated at 6×6 (`2x3dt` to `2x3de`). Whether 6×6 puzzles ship in packs and in the app (pack schema, engine, board, band labels) is decided in Tasks 4–7. Until then, packs hold 9×9 only.
+
 ### Steps
 
 1. **Generate** game IDs per band with Solo; save them to `pipeline/out/raw/` (gitignored).
