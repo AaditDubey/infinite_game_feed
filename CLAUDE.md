@@ -39,3 +39,4 @@ The spec's "Rules for agents" section is authoritative. In short:
 - Never use Solo's Unreasonable grade, and always pass `solo-gen` a seed (see `pipeline/README.md`).
 - iOS Expo Go requires the same Expo account in `npx expo login` and in the Expo Go app.
 - TypeScript 6 doesn't auto-include `@types` packages, so test globals come from `"types": ["jest"]` in `tsconfig.json`.
+- Metro reads the `@/` path aliases from `tsconfig.json`, but Jest doesn't, so `moduleNameMapper` in `package.json`'s `jest` block repeats them. Keep the two in sync, with `@/assets/*` listed before `@/*`.
