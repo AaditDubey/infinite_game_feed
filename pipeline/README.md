@@ -81,7 +81,7 @@ All five grades can be generated at 6×6:
 - Advanced is the slow one at 6×6, about 0.5 s per puzzle.
 - Game IDs look like `2x3:e3_5_1b2_6a6a5d2a3a6_3b4_5_4e`, with the same run-length format below but 36 cells.
 - `solosolver -g` agreed on all 25 recorded 6×6 samples.
-- Whether 6×6 puzzles ship in packs and the app is still open (Tasks 4–7).
+- 6×6 ships in the app: `pack-6x6-001.json` is built by Task 4, with the same bands and labels as 9×9 (see the spec's "Grid sizes").
 
 ## Game ID format
 
@@ -107,7 +107,7 @@ The whole description expands to the 81-character givens string the pack uses: `
 
 - The same commit, params and seed always give byte-identical output; the tests regenerate the whole fixture to prove it.
 - Different seeds give different puzzles.
-- For Task 4, use a distinct seed per band and batch (for example `pack-001-band5`), and cache the output in `out/raw/`.
+- For Task 4, use a distinct seed per band and batch (for example `pack-9x9-001-band5` and `pack-6x6-001-band5`), and cache the output in `out/raw/`.
 
 ## Speed
 
