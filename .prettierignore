@@ -1,0 +1,14 @@
+# Owner-written spec: keep as authored.
+docs/
+
+# Generated puzzle packs: never rewrite, not even with `prettier --write`.
+assets/puzzles/
+
+# Python pipeline (ruff formats it) and vendored generator source.
+pipeline/
+
+package-lock.json
+ios/
+android/
+.expo/
+dist/
