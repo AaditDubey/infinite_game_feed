@@ -74,7 +74,7 @@ One repo: the Expo app at the root, the Python pipeline in `pipeline/`. Each gam
 │   │   └── index.tsx           # Phase 1: the Sudoku screen
 │   ├── games/
 │   │   └── sudoku/
-│   │       ├── types.ts        # Puzzle, GameState, Move
+│   │       ├── types.ts        # Puzzle, CellState, GameState
 │   │       ├── engine.ts       # pure rules: moves, notes, undo, mistakes, completion
 │   │       ├── engine.test.ts
 │   │       ├── store.ts        # Zustand store wrapping the engine
@@ -210,11 +210,11 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 | Action | Behavior |
 | --- | --- |
 | Tap a cell | Selects it. Highlights its row, column and box, plus every cell holding the same digit. |
-| Tap a digit | Places it in the selected non-given cell and clears that cell's notes. If it differs from the solution, the cell turns red and mistakes go up by 1. The wrong digit stays until erased or replaced. Mistakes never end the game. |
+| Tap a digit | Places it in the selected cell and clears that cell's notes, unless the cell is locked: givens and correct digits can't be replaced. If it differs from the solution, the cell turns red and mistakes go up by 1. The wrong digit stays until erased or replaced. Mistakes never end the game. |
 | Correct digit placed | Removes that digit from notes in the same row, column and box. |
 | Notes on, tap a digit | Toggles that pencil mark in the selected empty cell. |
-| Erase | Clears the selected cell's digit or notes. Given cells can't be erased. |
-| Undo | Reverts the last digit, note or erase, with no depth limit. The mistake count never goes down. |
+| Erase | Clears the selected cell's digit or notes. Givens and correct digits are locked and can't be erased. |
+| Undo | Reverts the last digit, note or erase, with no depth limit, including a correct digit, which unlocks its cell again. The mistake count never goes down. |
 | Every cell correct (81, or 36) | Puzzle solved: timer stops, input locks, results are saved. |
 | App goes to background | Timer pauses; it resumes on return. |
 
@@ -255,16 +255,24 @@ export interface CellState {
   wrong: boolean;   // value differs from the solution
 }
 
+export interface CellChange {
+  index: number;
+  before: CellState; // the cell as it was before the move
+}
+
 export interface GameState {
   puzzle: Puzzle;
   cells: CellState[];       // size², row-major
   mistakes: number;
-  history: CellState[][];   // snapshots for undo
+  history: CellChange[][];  // per move, only the cells it changed; undo puts them back
   solved: boolean;
 }
 
 // createGame, placeDigit, toggleNote, erase, undo, isSolved
+// highlights (selected cell, its peers, same digit) and completedDigits (for dimming the pad)
 ```
+
+History keeps only the changed cells, not a copy of the whole board per move, because the game is saved after every move: a full copy is about 4 KB of JSON, so a long game would write hundreds of KB per tap.
 
 ### Quality bar
 
@@ -297,7 +305,7 @@ Phase 1 closes when every box below is ticked on a real phone, not a simulator.
 - [ ] `pack-9x9-001.json` and `pack-6x6-001.json` each hold 100 puzzles in each of bands 1–5, built by the pipeline with zero uniqueness failures.
 - [ ] Rebuilding each pack from the same raw output produces an identical file.
 - [ ] `uv run pytest` and `npm run check` pass.
-- [ ] Engine tests cover placing, wrong digits and mistake counting, notes and note cleanup, erase, undo, given-cell protection and solve detection, on both grid sizes.
+- [ ] Engine tests cover placing, wrong digits and mistake counting, notes and note cleanup, erase, undo, locked givens and correct digits, and solve detection, on both grid sizes.
 - [ ] A full 9×9 puzzle and a full 6×6 puzzle can each be played from start to solved screen on your phone.
 - [ ] Killing the app mid-game and reopening it restores the board, notes, mistakes and timer.
 - [ ] Solves and abandons appear in the results log with the right fields.
