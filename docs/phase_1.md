@@ -151,10 +151,10 @@ The app plays 9×9 and 6×6 Sudoku.
 2. **Parse** each game ID into a givens string with one character per cell (81 for 9×9, 36 for 6×6): row-major, `0` for an empty cell.
 3. **Verify** with our own solver: no duplicate digit in any row, column or box; exactly one solution (stop searching at two); the solution is a complete valid grid that matches every given.
 4. **Deduplicate** by givens string, including against packs already in `assets/`.
-5. **Write** the pack, sorted by band then id. Same input must produce a byte-identical file.
-6. **Report** counts per band and rejects by reason. Any uniqueness failure exits non-zero: Solo guarantees uniqueness, so a failure means a parsing bug.
+5. **Write** the pack, sorted by band then id. Same input must produce a byte-identical file, so `createdAt` comes from the cached raw output rather than today's date.
+6. **Report** counts per band and rejects by reason. Any uniqueness failure exits non-zero: Solo guarantees uniqueness, so a failure means a parsing bug. The same goes for every other reject except a duplicate (malformed, no solution, grade mismatch and so on): the build exits non-zero and writes nothing.
 
-Phase 1 target: 100 puzzles per band for each size, 1,000 total. They go in `assets/puzzles/sudoku/pack-9x9-001.json` (about 110 KB) and `pack-6x6-001.json` (about 80 KB).
+Phase 1 target: 100 puzzles per band for each size, 1,000 total. They go in `assets/puzzles/sudoku/pack-9x9-001.json` (194 KB) and `pack-6x6-001.json` (134 KB). Both were built in Task 4 with zero rejects.
 
 ### Pack format
 

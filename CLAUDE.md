@@ -6,17 +6,18 @@ An infinite, swipeable feed of mini puzzle games. Phase 1 builds Sudoku end to e
 
 ## Commands
 
-| Command                                                                                                                                     | Purpose                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `npm run check`                                                                                                                             | Typecheck, lint, format check, tests. Must pass before a task is done.            |
-| `npm run format`                                                                                                                            | Apply Prettier formatting.                                                        |
-| `npx expo start`                                                                                                                            | Dev server; open on the phone with Expo Go.                                       |
-| `npx expo install <pkg>`                                                                                                                    | Add a dependency at the SDK-matched version (`--dev` for dev tooling). Ask first. |
-| `npx expo-doctor`                                                                                                                           | Check that dependency versions match the SDK.                                     |
-| `cd pipeline && uv run pytest`                                                                                                              | Pipeline tests. Binary tests skip until `solo-gen` is built.                      |
-| `cd pipeline && uv run ruff check . && uv run ruff format --check .`                                                                        | Python lint and format.                                                           |
-| `cd pipeline && uv run cmake -S gen -B out/build -DCMAKE_BUILD_TYPE=Release && uv run cmake --build out/build --target solo-gen solosolver` | Build the generator (see `pipeline/README.md`).                                   |
-| `git submodule update --init`                                                                                                               | Fetch Tatham's source into `pipeline/vendor/puzzles` after cloning.               |
+| Command                                                                                                                                     | Purpose                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `npm run check`                                                                                                                             | Typecheck, lint, format check, tests. Must pass before a task is done.                         |
+| `npm run format`                                                                                                                            | Apply Prettier formatting.                                                                     |
+| `npx expo start`                                                                                                                            | Dev server; open on the phone with Expo Go.                                                    |
+| `npx expo install <pkg>`                                                                                                                    | Add a dependency at the SDK-matched version (`--dev` for dev tooling). Ask first.              |
+| `npx expo-doctor`                                                                                                                           | Check that dependency versions match the SDK.                                                  |
+| `cd pipeline && uv run pytest`                                                                                                              | Pipeline tests. Binary tests skip until `solo-gen` is built.                                   |
+| `cd pipeline && uv run ruff check . && uv run ruff format --check .`                                                                        | Python lint and format.                                                                        |
+| `cd pipeline && uv run cmake -S gen -B out/build -DCMAKE_BUILD_TYPE=Release && uv run cmake --build out/build --target solo-gen solosolver` | Build the generator (see `pipeline/README.md`).                                                |
+| `cd pipeline && uv run python -m sudoku.build_pack --grid 3x3 --per-band 100 --out ../assets/puzzles/sudoku/pack-9x9-001.json`              | Rebuild the 9×9 pack (`--grid 2x3` and `pack-6x6-001.json` for 6×6). Never edit packs by hand. |
+| `git submodule update --init`                                                                                                               | Fetch Tatham's source into `pipeline/vendor/puzzles` after cloning.                            |
 
 ## Working rules
 
