@@ -30,6 +30,6 @@ The spec's "Rules for agents" section is authoritative. In short:
 ## Environment notes
 
 - Expo SDK 57 is pinned until the store Expo Go moves to SDK 58. That upgrade is its own task.
-- Node 24 LTS (`.nvmrc`). On the owner's Intel Mac it's the nodejs.org build in `~/.local/opt/`, because Homebrew has no Intel bottles for it.
+- Node 24 LTS (`.nvmrc`). The owner's Mac is an Apple M4, but Homebrew is an Intel (x86_64) install in `/usr/local` that runs under Rosetta. Node is therefore the native arm64 nodejs.org build in `~/.local/opt/`, not Homebrew's. Check `node -p process.arch` prints `arm64` before installing packages; an x64 Node installs Intel builds of native modules.
 - iOS Expo Go requires the same Expo account in `npx expo login` and in the Expo Go app.
 - TypeScript 6 doesn't auto-include `@types` packages, so test globals come from `"types": ["jest"]` in `tsconfig.json`.
