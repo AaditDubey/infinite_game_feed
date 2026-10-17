@@ -328,9 +328,21 @@ describe.each([
       const allButOne = fillCorrectly(start, cells.slice(0, -1));
       const lastCell = cells[cells.length - 1];
 
-      const wrong = placeDigit(allButOne, lastCell, wrongDigit(start, lastCell));
-      expect(completedDigits(wrong)).not.toContain(digit);
+      expect(completedDigits(allButOne)).not.toContain(digit);
       expect(completedDigits(placeDigit(allButOne, lastCell, digit))).toContain(digit);
+    });
+
+    it("doesn't count a wrong copy of the digit", () => {
+      const digit = answer(start, first);
+      const cells = emptyCells(start).filter((index) => answer(start, index) === digit);
+      const allButOne = fillCorrectly(start, cells.slice(0, -1));
+      // Every other empty cell has a different answer, so the digit is wrong there.
+      const elsewhere = emptyCells(allButOne).find((index) => index !== cells[cells.length - 1]);
+      if (elsewhere === undefined) throw new Error('fixture needs another empty cell');
+
+      const game = placeDigit(allButOne, elsewhere, digit);
+      expect(game.cells.filter((cell) => cell.value === digit)).toHaveLength(size);
+      expect(completedDigits(game)).not.toContain(digit);
     });
   });
 
