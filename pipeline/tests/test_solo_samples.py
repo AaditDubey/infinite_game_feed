@@ -54,7 +54,7 @@ def test_game_ids_are_unique(grid):
 
 @pytest.mark.parametrize(("grid", "grade", "sample"), SAMPLES, ids=SAMPLE_IDS)
 def test_game_id_has_one_character_per_cell(grid, grade, sample):
-    shape = GRIDS[grid][1]
+    shape = GRIDS[grid][0]
     assert re.fullmatch(rf"{grid}:[a-z1-9_]+", sample["gameId"]), sample["gameId"]
     givens = givens_of(sample)
     assert len(givens) == shape.cells

@@ -16,7 +16,7 @@ from sudoku.verify import check_solution, verify_puzzle
 
 @pytest.mark.parametrize(("grid", "grade", "sample"), SAMPLES, ids=SAMPLE_IDS)
 def test_puzzle_has_exactly_one_solution(grid, grade, sample):
-    shape = GRIDS[grid][1]
+    shape = GRIDS[grid][0]
     givens = givens_of(sample)
     count, solution = count_solutions(givens, shape, limit=2)
     assert count == 1
@@ -27,7 +27,7 @@ def test_puzzle_has_exactly_one_solution(grid, grade, sample):
 @needs_build
 @pytest.mark.parametrize(("grid", "grade", "sample"), SAMPLES, ids=SAMPLE_IDS)
 def test_solution_matches_tatham(grid, grade, sample):
-    shape = GRIDS[grid][1]
+    shape = GRIDS[grid][0]
     output = subprocess.run(
         [str(SOLOSOLVER), sample["gameId"]], check=True, capture_output=True, text=True
     ).stdout

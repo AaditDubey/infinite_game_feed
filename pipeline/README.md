@@ -139,6 +139,31 @@ A 500-puzzle pack takes a few seconds, so parallel processes per band are option
 - **Shapes** (`sudoku/shape.py`): `SUDOKU_9X9` and `SUDOKU_6X6`. Pass the shape explicitly for 6×6, because 36 cells alone can't say whether the blocks are 3×2 or 2×3.
 - **Speed:** all 25 recorded 9×9 puzzles verify in about 12 ms (0.5 ms each), and the 25 6×6 puzzles in about 2 ms.
 
+## Pack builder
+
+`sudoku/build_pack.py` makes the packs the app ships. Run it from `pipeline/` after building `solo-gen`:
+
+```sh
+uv run python -m sudoku.build_pack --grid 3x3 --per-band 100 --out ../assets/puzzles/sudoku/pack-9x9-001.json
+uv run python -m sudoku.build_pack --grid 2x3 --per-band 100 --out ../assets/puzzles/sudoku/pack-6x6-001.json
+```
+
+- **Names come from `--out`.** The file must be named `pack-<9x9|6x6>-<NNN>.json`, matching `--grid`. That gives the pack id (`sudoku-9x9-001`), the puzzle ids (`sudoku-9x9-001-0001`…) and the seeds (`pack-9x9-001-band<k>`), so every pack gets its own seeds.
+- **Raw output** is cached in `out/raw/<pack>.json`.
+  - It holds `--per-band` + `--extra` (default 10) puzzles per band, generated with all five bands in parallel.
+  - Later runs reuse it. If it was made with a different Solo commit, grid, seeds or count, the build refuses and asks for `--regenerate`.
+- **Each puzzle** is parsed (`tatham.parse_game_id`), verified (`verify_puzzle`), and graded by `solosolver -g`, which must match its band. Duplicates are skipped, including against the other packs of the same size next to `--out`. The first `--per-band` accepted puzzles of each band ship, numbered in band order.
+- **Failure policy:** Solo guarantees valid, unique puzzles at the exact grade, so any reject other than a duplicate means a bug. The build exits 1 and writes nothing; it does the same if a band comes up short. Writes are atomic.
+- **Determinism:** `createdAt` and the generator version come from the raw file. Rebuilding from the same raw output, or regenerating from the same seeds, gives a byte-identical pack.
+- **Report:** a table of generated, rejected, duplicates, accepted and shipped per band, then every reject reason with its count.
+
+The first build, on the M4:
+
+| Pack                | Time | Rejects | Duplicates | Size   | Clues per band (mean) |
+| ------------------- | ---- | ------- | ---------- | ------ | --------------------- |
+| `pack-9x9-001.json` | 4 s  | 0       | 0          | 194 KB | 29.3 → 27.7           |
+| `pack-6x6-001.json` | 45 s | 0       | 0          | 134 KB | 12.0 → 11.4           |
+
 ## Recorded samples and tests
 
 - `scripts/record_solo_samples.py` writes the sample fixtures. It refuses to write a file unless `solosolver -g` agrees with every grade.
