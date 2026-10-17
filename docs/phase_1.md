@@ -224,8 +224,10 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 - Append to a results log on every solve: puzzle id, grid size, band, solved-at time, elapsed milliseconds, mistakes.
 - Also log an abandon when "Next puzzle" or the band picker leaves a game unsolved, with elapsed time and mistakes. Phase 3's rating will use these.
 - Next puzzle, and the no-repeat rule:
-  - "Next puzzle" picks a size at random (even odds) among the sizes that still have unplayed puzzles in the band. It then serves the next unplayed puzzle of that size.
-  - No puzzle repeats until every puzzle in the band, both sizes, has been played. Then that band starts over.
+  - A puzzle counts as played only once the player solves it. A skipped or abandoned puzzle stays unplayed and can be served again.
+  - "Next puzzle" picks a size at random (even odds) among the sizes that still have unplayed puzzles in the band. It then serves the next unplayed puzzle of that size, in pack order after the last puzzle it served of that band and size, wrapping around to the start. So a skipped puzzle comes back only after every other unplayed puzzle of its band and size has been served.
+  - No solved puzzle repeats until every puzzle in the band, both sizes, has been solved. Then that band starts over.
+  - Save the solved puzzle ids and the last puzzle served for each band and size, so the order survives a restart.
   - The random source is passed in, so tests can fix it.
 - Prefix every storage key with `v1:` so the format can change later.
 
