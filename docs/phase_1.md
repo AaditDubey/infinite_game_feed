@@ -36,7 +36,7 @@ The app is TypeScript on Expo SDK 57; the puzzle pipeline is Python plus Simon T
 
 | Layer | Choice | Notes |
 | --- | --- | --- |
-| Generator | Solo, from Simon Tatham's Portable Puzzle Collection (MIT license) | Generates Sudoku and grades it by the solving techniques required. Built from source with CMake. |
+| Generator | Solo, from Simon Tatham's Portable Puzzle Collection (MIT license) | Generates Sudoku and grades it by the solving techniques required. Built from source with CMake, with our small `solo-gen` command-line frontend (see Generator). |
 | Harness | Python 3.12+ | Calls the generator, parses output, verifies, writes packs. |
 | Python environment | `uv` | One `pyproject.toml` in `pipeline/`. |
 | Verification | Our own Python solver | Independent of Tatham's code, so a parsing bug can't slip through. |
@@ -91,7 +91,11 @@ One repo: the Expo app at the root, the Python pipeline in `pipeline/`. Each gam
 │       └── sudoku/             # GENERATED packs: never edit by hand
 ├── pipeline/
 │   ├── pyproject.toml
+│   ├── README.md               # generator findings: build, params, game ID format
 │   ├── vendor/                 # Tatham's source (git submodule), built locally
+│   ├── gen/                    # solo-gen: our command-line frontend for Solo, and its CMake build
+│   ├── scripts/                # one-off recorders, e.g. the test fixture
+│   ├── out/                    # gitignored: build output and raw generator output
 │   ├── sudoku/
 │   │   ├── tatham.py           # runs Solo, parses its output
 │   │   ├── solver.py           # our solver, counts solutions
@@ -110,11 +114,11 @@ Puzzles are generated and verified on the laptop; the phone only reads finished 
 
 ### Generator
 
-- **Source:** Tatham's collection as a git submodule in `pipeline/vendor/puzzles`, built with CMake. The Unix builds accept `--generate n` followed by game parameters and print n game IDs ([man page](https://manpages.ubuntu.com/manpages/noble/man6/sgt-loopy.6.html)).
+- **Source:** Tatham's collection as a git submodule in `pipeline/vendor/puzzles`, built with CMake. The Unix (GTK) builds accept `--generate n` followed by game parameters and print n game IDs ([man page](https://manpages.ubuntu.com/manpages/noble/man6/sgt-loopy.6.html)). On macOS his CMake builds only the Cocoa app, which has no `--generate`. So `pipeline/gen/solo_gen.c` runs the same loop as `gtk.c`'s `--generate` from the command line: `solo-gen <n> <params> <seed>`. The seed is required, because Tatham's no-op frontend always returns the same random seed. Tatham's `solosolver -g` from the same build cross-checks each puzzle's grade. Details are in `pipeline/README.md`.
 - **Difficulty:** Solo grades each puzzle by the deduction techniques it needs. From Intermediate up, players must reason about sets of candidates; Unreasonable requires guessing and backtracking ([Solo docs](https://www.chiark.greenend.org.uk/~sgtatham/puzzles/doc/solo.html)). Never use Unreasonable.
-- **Speed:** hard grades take many attempts to generate, so run bands in parallel processes and cache raw output.
-- **Verify before coding:** read `solo.c` and run the binary to confirm the parameter string for a 9×9 grid at each grade and the game ID format. Record both in a pytest fixture. Don't guess either.
-- **Fallback:** if building the GTK frontend on macOS stalls, run Ubuntu's `sgt-puzzles` package in Docker (binary `sgt-solo`), which has the same `--generate` option.
+- **Speed:** hard grades take more attempts to generate, but on the M4 100 Advanced puzzles take about 3 s. Parallel processes per band are optional. Cache raw output anyway.
+- **Verify before coding:** read `solo.c` and run the binary to confirm the parameter string for a 9×9 grid at each grade and the game ID format. Record both in a pytest fixture. Don't guess either. Done in Task 2: see `pipeline/README.md` and `pipeline/tests/fixtures/solo_samples.json`.
+- **Fallback:** if the native `solo-gen` build breaks, run Ubuntu's `sgt-puzzles` package in Docker (binary `sgt-solo`), which has the same `--generate` option.
 
 ### Difficulty bands
 
@@ -126,7 +130,7 @@ Puzzles are generated and verified on the laptop; the phone only reads finished 
 | 4 | Advanced | Expert |
 | 5 | Extreme | Master |
 
-Confirm the grade names against `solo.c`; if they differ, keep five bands and map the nearest grades.
+Confirmed against `solo.c` at commit `616da16`: the five grade names match. The params are `3x3dt`, `3x3db`, `3x3di`, `3x3da` and `3x3de`.
 
 ### Steps
 
@@ -257,6 +261,7 @@ A task is done only when `npm run check` passes and, if the pipeline changed, `u
 | Root | `npx expo-doctor` | Check that dependency versions match the SDK. |
 | Root | `npm run check` | `tsc --noEmit`, `expo lint`, `prettier --check .`, `jest`. |
 | `pipeline/` | `uv sync` | Install the Python environment. |
+| `pipeline/` | `uv run cmake -S gen -B out/build -DCMAKE_BUILD_TYPE=Release && uv run cmake --build out/build --target solo-gen solosolver` | Build the generator and Tatham's grader. |
 | `pipeline/` | `uv run pytest` | Pipeline tests. |
 | `pipeline/` | `uv run ruff check . && uv run ruff format --check .` | Python lint and format. |
 | `pipeline/` | `uv run python -m sudoku.build_pack --per-band 100 --out ../assets/puzzles/sudoku/pack-001.json` | Build a pack and print the report. |
