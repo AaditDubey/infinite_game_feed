@@ -1,24 +1,21 @@
 """Shared helpers for tests that use the recorded Solo samples in tests/fixtures/."""
 
 import json
-from pathlib import Path
 
 import pytest
 
-from sudoku.shape import SUDOKU_6X6, SUDOKU_9X9
+from sudoku.tatham import GRIDS, PIPELINE, SOLO_GEN, SOLOSOLVER, parse_game_id
 
-PIPELINE = Path(__file__).resolve().parent.parent
-SOLO_GEN = PIPELINE / "out/build/solo-gen"
-SOLOSOLVER = PIPELINE / "out/build/puzzles/solosolver"
+__all__ = ["GRIDS", "SOLOSOLVER", "SOLO_GEN"]
 
-# Solo grid params -> (fixture file, our shape).
-GRIDS = {
-    "3x3": ("solo_samples.json", SUDOKU_9X9),
-    "2x3": ("solo_samples_2x3.json", SUDOKU_6X6),
+# Solo grid params -> fixture file.
+FIXTURE_FILES = {
+    "3x3": "solo_samples.json",
+    "2x3": "solo_samples_2x3.json",
 }
 FIXTURES = {
     grid: json.loads((PIPELINE / "tests/fixtures" / filename).read_text())
-    for grid, (filename, _) in GRIDS.items()
+    for grid, filename in FIXTURE_FILES.items()
 }
 
 # Every recorded puzzle as (grid, grade entry, sample), with readable test ids.
@@ -36,23 +33,36 @@ needs_build = pytest.mark.skipif(
 )
 
 
-def decode_desc(desc: str) -> str:
-    """Expand a Solo grid description into a givens string ('0' = empty).
-
-    'a'-'z' are runs of 1-26 empty cells, each digit is one given (grids up to 9x9), and
-    '_' only separates two adjacent givens. Task 4's tatham.py replaces this helper.
-    """
-    out = []
-    for ch in desc:
-        if "a" <= ch <= "z":
-            out.append("0" * (ord(ch) - ord("a") + 1))
-        elif ch.isdigit():
-            out.append(ch)
-        elif ch != "_":
-            raise ValueError(f"unexpected {ch!r} in Solo grid description")
-    return "".join(out)
-
-
 def givens_of(sample: dict) -> str:
     """The givens string of a recorded sample's game ID, e.g. '3x3:9a8f...'."""
-    return decode_desc(sample["gameId"].split(":", 1)[1])
+    grid = sample["gameId"].split(":", 1)[0]
+    return parse_game_id(sample["gameId"], grid)
+
+
+def encode_desc(givens: str) -> str:
+    """Encode a givens string the way solo.c's encode_grid() does: the parser's inverse.
+
+    Empty runs become 'a'-'z' (longer runs split at 26), and '_' goes only between two
+    adjacent givens.
+    """
+    out: list[str] = []
+    run = 0
+
+    def flush() -> None:
+        nonlocal run
+        while run > 0:
+            step = min(run, 26)
+            out.append(chr(ord("a") + step - 1))
+            run -= step
+
+    for ch in givens:
+        if ch == "0":
+            run += 1
+            continue
+        if run:
+            flush()
+        elif out:
+            out.append("_")
+        out.append(ch)
+    flush()
+    return "".join(out)
