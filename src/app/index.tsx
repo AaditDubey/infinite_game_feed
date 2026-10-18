@@ -9,11 +9,17 @@ import { Toolbar } from '@/games/sudoku/components/Toolbar';
 import { TopBar } from '@/games/sudoku/components/TopBar';
 import { useSudokuStore } from '@/games/sudoku/store';
 import { useBackgroundPause } from '@/games/sudoku/useBackgroundPause';
+import { useRestore } from '@/games/sudoku/useRestore';
 import { theme } from '@/theme/theme';
 
 export default function Index() {
+  const ready = useRestore();
   const solved = useSudokuStore((state) => state.game.solved);
   useBackgroundPause();
+
+  if (!ready) {
+    return null; // the splash screen is still showing
+  }
 
   return (
     <SafeAreaView style={styles.container}>
