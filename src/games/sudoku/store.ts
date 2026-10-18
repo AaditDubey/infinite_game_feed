@@ -8,16 +8,18 @@ import {
   pickNextPuzzle,
   type PlayHistory,
 } from '@/puzzles/loader';
+import { appendResult, loadSudoku, saveGame, savePlayHistory } from '@/storage/persistence';
 import * as stopwatch from '@/timer/stopwatch';
 
 import * as engine from './engine';
 import type { Band, Digit, GameState } from './types';
 
 // The Sudoku screen's state. Moves go through the engine; the store adds selection, Notes,
-// the timer, the chosen band and which puzzles have been played.
+// the timer, the chosen band and which puzzles have been played, and saves them all.
 interface SudokuStore {
+  ready: boolean; // false until restore() has loaded the saved game
   band: Band;
-  history: PlayHistory; // kept in memory until Task 9 saves it
+  history: PlayHistory;
   game: GameState;
   timer: stopwatch.Stopwatch;
   selected: number | null; // index of the selected cell
@@ -34,6 +36,8 @@ interface SudokuStore {
   chooseBand: (band: Band) => void;
   pauseTimer: () => void; // the app went to the background; there's no pause button
   resumeTimer: () => void; // the app came back
+  saveNow: () => void; // saves the play time so far, without pausing
+  restore: () => Promise<void>; // on launch: resumes the saved game or serves a new one
 }
 
 const catalog = loadBundledCatalog();
@@ -67,7 +71,9 @@ export const useSudokuStore = create<SudokuStore>()((set, get) => {
   };
 
   return {
+    // A placeholder until restore() replaces it. Nothing is shown or saved before then.
     ...servePuzzle(1, EMPTY_HISTORY),
+    ready: false,
     flash: { cells: [], id: 0 },
     select: (index) => set({ selected: index }),
     inputDigit: (digit) => {
@@ -89,8 +95,19 @@ export const useSudokuStore = create<SudokuStore>()((set, get) => {
         update.flash = { cells: completed.flat(), id: flash.id + 1 };
       }
       if (next.solved) {
-        update.timer = stopwatch.pause(timer, Date.now());
+        const now = Date.now();
+        const stopped = stopwatch.pause(timer, now);
+        update.timer = stopped;
         update.history = markSolved(history, next.puzzle.id);
+        void appendResult({
+          outcome: 'solved',
+          puzzleId: next.puzzle.id,
+          size: next.puzzle.size,
+          band: next.puzzle.band,
+          at: now,
+          elapsedMs: stopped.elapsedMs,
+          mistakes: next.mistakes,
+        });
       }
       set(update);
     },
@@ -115,5 +132,54 @@ export const useSudokuStore = create<SudokuStore>()((set, get) => {
         set({ timer: stopwatch.resume(timer, Date.now()) });
       }
     },
+    saveNow: () => {
+      if (get().ready) {
+        saveProgress(get());
+      }
+    },
+    restore: async () => {
+      if (get().ready) {
+        return;
+      }
+      const saved = await loadSudoku(catalog);
+      // Another call may have finished first; the player could already be playing.
+      if (get().ready) {
+        return;
+      }
+      if (saved.game !== null && !saved.game.state.solved) {
+        const { state, elapsedMs } = saved.game;
+        set({
+          ready: true,
+          band: state.puzzle.band,
+          history: saved.playHistory,
+          game: state,
+          // Carries on from the saved play time.
+          timer: stopwatch.resume({ elapsedMs, runningSince: null }, Date.now()),
+        });
+      } else {
+        // A solved game isn't resumed: the next puzzle of its band is served instead.
+        const band = saved.game?.state.puzzle.band ?? 1;
+        set({ ...servePuzzle(band, saved.playHistory), ready: true });
+      }
+    },
   };
+});
+
+// Saves the game with the play time so far.
+function saveProgress({ game, timer }: Pick<SudokuStore, 'game' | 'timer'>) {
+  void saveGame(game, stopwatch.elapsedMs(timer, Date.now()));
+}
+
+// Saves the game after every move and whenever the timer stops, starts or restarts, and the
+// play history whenever it changes, so closing the app loses nothing.
+useSudokuStore.subscribe((state, prev) => {
+  if (!state.ready) {
+    return;
+  }
+  if (state.game !== prev.game || state.timer !== prev.timer) {
+    saveProgress(state);
+  }
+  if (state.history !== prev.history) {
+    void savePlayHistory(state.history);
+  }
 });
