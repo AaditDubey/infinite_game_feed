@@ -38,3 +38,6 @@ export const BOX_SHAPES: Record<GridSize, { boxWidth: number; boxHeight: number 
   9: { boxWidth: 3, boxHeight: 3 },
   6: { boxWidth: 3, boxHeight: 2 },
 };
+
+// A grid of size n uses the first n digits.
+export const DIGITS: Digit[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];

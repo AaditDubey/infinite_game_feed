@@ -1,5 +1,6 @@
 import {
   completedDigits,
+  completedUnits,
   createGame,
   erase,
   highlights,
@@ -44,14 +45,23 @@ function fillCorrectly(game: GameState, indices: number[]): GameState {
   return indices.reduce((state, index) => placeDigit(state, index, answer(state, index)), game);
 }
 
-// Worked out separately from the engine: do two cells share a row, column or box?
-function sameUnit(size: GridSize, a: number, b: number): boolean {
+// Worked out separately from the engine: the row, column and box through a cell.
+function unitsThrough(size: GridSize, index: number) {
   const { boxWidth, boxHeight } = BOX_SHAPES[size];
-  const row = (index: number) => Math.floor(index / size);
-  const col = (index: number) => index % size;
-  const box = (index: number) =>
-    `${Math.floor(row(index) / boxHeight)},${Math.floor(col(index) / boxWidth)}`;
-  return row(a) === row(b) || col(a) === col(b) || box(a) === box(b);
+  const row = (cell: number) => Math.floor(cell / size);
+  const col = (cell: number) => cell % size;
+  const box = (cell: number) =>
+    `${Math.floor(row(cell) / boxHeight)},${Math.floor(col(cell) / boxWidth)}`;
+  const all = Array.from({ length: size * size }, (_, cell) => cell);
+  return {
+    row: all.filter((cell) => row(cell) === row(index)),
+    column: all.filter((cell) => col(cell) === col(index)),
+    box: all.filter((cell) => box(cell) === box(index)),
+  };
+}
+
+function sameUnit(size: GridSize, a: number, b: number): boolean {
+  return Object.values(unitsThrough(size, a)).some((unit) => unit.includes(b));
 }
 
 function deepFreeze<T>(value: T): T {
@@ -220,14 +230,17 @@ describe.each([
   });
 
   describe('undo', () => {
-    it('reverts a correct digit and restores the notes it cleaned up', () => {
-      const digit = answer(start, first);
-      const noted = emptyCells(start).reduce(
-        (game, index) => toggleNote(game, index, digit),
-        start,
-      );
-      const placed = placeDigit(noted, first, digit);
-      expect(undo(placed).cells).toEqual(noted.cells);
+    it('never takes back a correct digit', () => {
+      const placed = placeDigit(start, first, answer(start, first));
+      expect(placed.history).toEqual([]);
+      expect(undo(placed)).toBe(placed);
+    });
+
+    it('goes back only as far as the last correct digit', () => {
+      const placed = placeDigit(toggleNote(start, second, 1), first, answer(start, first));
+      const undone = undo(toggleNote(placed, second, 2));
+      expect(undone.cells).toEqual(placed.cells);
+      expect(undo(undone)).toBe(undone);
     });
 
     it('reverts a wrong digit but keeps the mistake', () => {
@@ -321,6 +334,46 @@ describe.each([
     });
   });
 
+  describe('completedUnits', () => {
+    const units = unitsThrough(size, first);
+    // Fills every other empty cell of the given units, leaving `first` as the last one.
+    const fillAround = (...chosen: number[][]) =>
+      fillCorrectly(
+        start,
+        [...new Set(chosen.flat())].filter(
+          (index) => index !== first && start.cells[index].value === null,
+        ),
+      );
+
+    it.each(['row', 'column', 'box'] as const)(
+      'returns the %s a correct digit completes',
+      (name) => {
+        const game = placeDigit(fillAround(units[name]), first, answer(start, first));
+        const complete = Object.values(units).filter((unit) =>
+          unit.every((index) => game.cells[index].value === answer(start, index)),
+        );
+        expect(complete).toContainEqual(units[name]);
+        expect(completedUnits(game, first)).toEqual(complete);
+      },
+    );
+
+    it('returns the row, column and box together when one digit completes all three', () => {
+      const around = fillAround(units.row, units.column, units.box);
+      const game = placeDigit(around, first, answer(start, first));
+      expect(completedUnits(game, first)).toEqual([units.row, units.column, units.box]);
+    });
+
+    it('returns nothing while a unit has an empty cell, a note or a wrong digit', () => {
+      const around = fillAround(units.row);
+      expect(completedUnits(start, first)).toEqual([]);
+      expect(completedUnits(placeDigit(start, first, answer(start, first)), first)).toEqual([]);
+      expect(completedUnits(toggleNote(around, first, 1), first)).toEqual([]);
+      expect(completedUnits(placeDigit(around, first, wrongDigit(start, first)), first)).toEqual(
+        [],
+      );
+    });
+  });
+
   describe('completedDigits', () => {
     it('lists a digit once every copy of it is placed correctly', () => {
       const digit = answer(start, first);
@@ -379,5 +432,25 @@ describe('6×6 boxes are 3 wide and 2 tall', () => {
     );
     // Row 0, column 1, and the box made of rows 0–1 and columns 0–2.
     expect(peers).toEqual([0, 2, 3, 4, 5, 6, 7, 8, 13, 19, 25, 31]);
+  });
+
+  it.each([
+    // The top-left box: cells 0, 1 and 6 are empty, and 2, 7 and 8 are givens.
+    [
+      [0, 6, 1],
+      [0, 1, 2, 6, 7, 8],
+    ],
+    // The box in rows 2–3 and columns 3–5: cells 16, 23 and 21 are empty. Its top row is 2,
+    // which boxes 3 tall would get wrong.
+    [
+      [16, 23, 21],
+      [15, 16, 17, 21, 22, 23],
+    ],
+  ])('completes the 3-wide, 2-tall box when %j are filled', (fill, box) => {
+    const game = fill.reduce(
+      (state, index) => placeDigit(state, index, Number(PUZZLE_6X6.solution[index]) as Digit),
+      start,
+    );
+    expect(completedUnits(game, fill[fill.length - 1])).toContainEqual(box);
   });
 });
