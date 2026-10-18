@@ -1,5 +1,6 @@
 import {
   BOX_SHAPES,
+  DIGITS,
   type CellChange,
   type CellState,
   type Digit,
@@ -12,8 +13,6 @@ import {
 
 // How the board shows a cell, given the selected cell.
 export type Highlight = 'selected' | 'sameDigit' | 'peer' | 'none';
-
-const DIGITS: Digit[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 export function createGame(puzzle: Puzzle): GameState {
   const cells = [...puzzle.givens].map((char): CellState => {
