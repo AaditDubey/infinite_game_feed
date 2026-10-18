@@ -15,6 +15,7 @@ export const theme = {
     cellSameDigit: '#CFE0F5',
     cellPeer: '#EBF1F8',
     cellWrong: '#FBE3E3',
+    unitComplete: '#4CAF50', // flashes over a completed row, column or box
 
     // Cell text.
     givenText: '#1A1A1A',
@@ -48,6 +49,8 @@ export const theme = {
     cellLineWidth: 1,
     digitScale: 0.6, // a placed digit's font size, as a share of the cell's width
     noteScale: 0.26, // a note's font size, as a share of the cell's width
+    flashMs: 600, // the green flash on a completed row, column or box, in and out
+    flashOpacity: 0.45, // the flash's strongest green, over the cell's own background
   },
   button: {
     height: 52,

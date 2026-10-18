@@ -1,4 +1,11 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { theme } from '@/theme/theme';
 
@@ -12,10 +19,22 @@ interface CellProps {
   cell: CellState;
   highlight: Highlight;
   width: number; // the cell's width in points, for text sizes
+  flashId: number; // changes to a new non-zero number each time the cell should flash green
   onPress: (index: number) => void;
 }
 
-export function Cell({ index, size, cell, highlight, width, onPress }: CellProps) {
+export function Cell({ index, size, cell, highlight, width, flashId, onPress }: CellProps) {
+  // A green layer behind the digit fades in and out once. Reanimated runs it on the UI thread,
+  // so taps stay responsive while it plays.
+  const flash = useSharedValue(0);
+  useEffect(() => {
+    if (flashId > 0) {
+      const half = { duration: theme.board.flashMs / 2 };
+      flash.set(withSequence(withTiming(theme.board.flashOpacity, half), withTiming(0, half)));
+    }
+  }, [flashId, flash]);
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
+
   return (
     <Pressable
       style={[styles.cell, { backgroundColor: background(cell, highlight) }]}
@@ -24,6 +43,7 @@ export function Cell({ index, size, cell, highlight, width, onPress }: CellProps
       accessibilityLabel={cellLabel(index, size, cell.value)}
       accessibilityState={{ selected: highlight === 'selected' }}
     >
+      <Animated.View pointerEvents="none" style={[styles.flash, flashStyle]} />
       {cell.value !== null ? (
         <Text
           style={[
@@ -84,6 +104,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  flash: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: theme.colors.unitComplete,
   },
   digit: {
     includeFontPadding: false,

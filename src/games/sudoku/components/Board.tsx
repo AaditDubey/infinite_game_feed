@@ -13,6 +13,7 @@ import { boxGrid } from './layout';
 export function Board() {
   const game = useSudokuStore((state) => state.game);
   const selected = useSudokuStore((state) => state.selected);
+  const flash = useSudokuStore((state) => state.flash);
   const select = useSudokuStore((state) => state.select);
   const { width: screenWidth } = useWindowDimensions();
 
@@ -20,6 +21,7 @@ export function Board() {
   const boardWidth = screenWidth - 2 * theme.spacing.md;
   const cellWidth = boardWidth / size; // the lines take a few points, which text sizes can ignore
   const marks = highlights(game, selected);
+  const flashing = new Set(flash.cells);
 
   return (
     <View style={[styles.board, { width: boardWidth, height: boardWidth }]}>
@@ -37,6 +39,7 @@ export function Board() {
                       cell={game.cells[index]}
                       highlight={marks[index]}
                       width={cellWidth}
+                      flashId={flashing.has(index) ? flash.id : 0}
                       onPress={select}
                     />
                   ))}
