@@ -41,3 +41,14 @@ export const BOX_SHAPES: Record<GridSize, { boxWidth: number; boxHeight: number 
 
 // A grid of size n uses the first n digits.
 export const DIGITS: Digit[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+export const BANDS: Band[] = [1, 2, 3, 4, 5];
+
+// The app's name for each band, from the band table in docs/phase_1.md.
+export const BAND_LABELS: Record<Band, string> = {
+  1: 'Easy',
+  2: 'Medium',
+  3: 'Hard',
+  4: 'Expert',
+  5: 'Master',
+};
