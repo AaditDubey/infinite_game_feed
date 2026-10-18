@@ -23,7 +23,7 @@ export function createGame(puzzle: Puzzle): GameState {
 }
 
 // Givens and correct digits are locked. A wrong digit counts a mistake; a correct one also
-// removes that digit from the notes in its row, column and box.
+// removes that digit from the notes in its row, column and box, and can't be undone.
 export function placeDigit(state: GameState, index: number, digit: Digit): GameState {
   checkIndex(state, index);
   checkDigit(state, digit);
@@ -40,7 +40,9 @@ export function placeDigit(state: GameState, index: number, digit: Digit): GameS
       }
     });
   }
-  return applyMove(state, changes, correct ? state.mistakes : state.mistakes + 1);
+  const next = applyMove(state, changes, correct ? state.mistakes : state.mistakes + 1);
+  // A correct digit is permanent, so undo never goes back past it.
+  return correct ? { ...next, history: [] } : next;
 }
 
 // Only empty cells take notes.
@@ -98,6 +100,16 @@ export function highlights(state: GameState, selected: number | null): Highlight
   });
 }
 
+// The row, column and box through `index` that have every digit correct, in that order, as
+// lists of cell indices. Correct digits are permanent, so each unit completes only once: on
+// the move that places its last digit.
+export function completedUnits(state: GameState, index: number): number[][] {
+  checkIndex(state, index);
+  return unitsThrough(state.puzzle.size, index).filter((unit) =>
+    unit.every((cell) => isLocked(state, cell)),
+  );
+}
+
 // Digits with every copy placed correctly, so the number pad can dim them.
 export function completedDigits(state: GameState): Digit[] {
   const size = state.puzzle.size;
@@ -131,6 +143,21 @@ function solutionDigit(state: GameState, index: number): Digit {
 
 function toDigit(char: string): Digit {
   return Number(char) as Digit; // the loader checked every digit is 1 to the grid size
+}
+
+// The row, column and box through `index`, each as cell indices in reading order.
+function unitsThrough(size: GridSize, index: number): number[][] {
+  const { boxWidth, boxHeight } = BOX_SHAPES[size];
+  const row = Math.floor(index / size);
+  const col = index % size;
+  const top = row - (row % boxHeight);
+  const left = col - (col % boxWidth);
+  const range = (length: number) => Array.from({ length }, (_, i) => i);
+  return [
+    range(size).map((c) => row * size + c),
+    range(size).map((r) => r * size + col),
+    range(boxHeight).flatMap((r) => range(boxWidth).map((c) => (top + r) * size + left + c)),
+  ];
 }
 
 // Two different cells in the same row, column or box.

@@ -55,7 +55,7 @@ describe('useSudokuStore', () => {
 
   it('undoes the last move', () => {
     store().select(empty);
-    store().inputDigit(answer(start, empty));
+    store().inputDigit(answer(start, empty) === 1 ? 2 : 1);
     store().undo();
     expect(store().game.cells).toEqual(start.cells);
   });
