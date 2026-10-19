@@ -267,7 +267,7 @@ export const BACK_HISTORY = 20; // seen pages kept behind the current one
 export const AHEAD = 1;         // unseen pages kept ready below the current one
 export const LEARNED_AFTER = 3; // forward swipes after which the swipe label stops
 
-// createFeed(first, now): a feed of one page, already seen
+// createFeed(first): a feed of one page, already seen
 // append(state, { game, puzzleId, band }): adds an unseen page at the end
 // settleOn(state, index, now): marks the page seen, records leftAt on the page left,
 //   counts a forward swipe, and returns { state, dropped }: the pages that fell off the back history
@@ -400,7 +400,11 @@ Run each task as its own plan-mode session, on its own branch, and commit when i
 2. **One store per puzzle.** Add `createSudokuStore`, the context and `useSudoku`, and move the catalog and play history into `source.ts`. The app still shows one puzzle and behaves exactly as in Phase 1, and every Phase 1 test passes after porting. Done on Oct 19, with two steps left for later tasks:
    - Until the feed exists, `src/games/sudoku/session.ts` holds the puzzle on screen, with Phase 1's launch, Next puzzle and band picker. Task 6 deletes it, along with the band picker, `useRestore.ts` and `useBackgroundPause.ts`.
    - `createSudokuStore` takes `{ game, elapsedMs }` and still saves under Phase 1's `v1:sudoku:game`, because launch can only reopen that key until Task 7. Task 7 adds `pageId` and the per-page key.
-3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI.
+3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI. Done on Oct 19:
+   - `createFeed` takes no time, because the first page records nothing until it's left.
+   - The feed's `Band` type lives in `difficulty.ts`. It's the same as Sudoku's, which `src/feed/` can't import.
+   - `settleOn` ignores the current index and any index outside the list.
+   - `paging.ts` has `pageAt`, `pageOffset` and `pageLayout`, the last for `getItemLayout`.
 4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load.
 5. **Feed store.** Wire the feed rules, the Sudoku source and the per-puzzle stores together, in memory only, with tests: settling, pages ahead, dropping and abandons, and timers.
 6. **Swipe feed UI.**
