@@ -395,7 +395,7 @@ Phase 2 closes when every box below is ticked on a real phone, not a simulator.
 
 Run each task as its own plan-mode session, on its own branch, and commit when it passes its checks.
 
-0. **SDK 58.** Merge PR #11 after its phone check. Every task below starts from SDK 58.
+0. **SDK 58.** Merge PR #11 after its phone check. Every task below starts from SDK 58. The phone check passed on Oct 19.
 1. **Spec.** Answer the open questions and finalize this file. Point `CLAUDE.md` at it alongside `phase_1.md`. Update `phase_1.md`'s later phases table to match the one here. Done on Oct 19.
 2. **One store per puzzle.** Add `createSudokuStore`, the context and `useSudoku`, and move the catalog and play history into `source.ts`. The app still shows one puzzle and behaves exactly as in Phase 1, and every Phase 1 test passes after porting.
 3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI.
