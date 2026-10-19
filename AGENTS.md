@@ -1,6 +1,6 @@
 # Agent guide
 
-Read `docs/phase_1.md` (the Phase 1 spec) before reviewing or changing anything. It is the source of truth, and its "Rules for agents" section applies to every task.
+Read `docs/phase_1.md` (the Phase 1 spec) and `docs/phase_2.md` (the Phase 2 spec, the swipe feed) before reviewing or changing anything. They are the source of truth, and their "Rules for agents" sections apply to every task. Where they disagree, `phase_2.md` wins for Phase 2 work.
 
 ## Review checklist
 
@@ -9,7 +9,8 @@ Read `docs/phase_1.md` (the Phase 1 spec) before reviewing or changing anything.
 - Every engine rule change comes with tests.
 - Nothing under `assets/puzzles/` was edited by hand; packs come from the pipeline.
 - No new dependency without the owner's approval. App packages are added with `npx expo install`.
-- Nothing from the spec's out-of-scope list.
+- `src/feed/` stays game-agnostic: only `src/feed/games.ts` imports from `src/games/`.
+- Nothing from the specs' out-of-scope lists.
 
 ## Expo has changed: don't trust training data
 

@@ -1,8 +1,10 @@
 # Infinite Games
 
-An infinite, swipeable feed of mini puzzle games. Phase 1 builds Sudoku end to end. The spec below is the source of truth: read it before planning, and if a request conflicts with it, stop and ask.
+An infinite, swipeable feed of mini puzzle games. Phase 1 built Sudoku end to end; Phase 2 turns it into the swipe feed. The specs below are the source of truth: read both before planning. Where they disagree, `phase_2.md` wins for Phase 2 work. If a request conflicts with them, stop and ask.
 
 @docs/phase_1.md
+
+@docs/phase_2.md
 
 ## Commands
 
@@ -21,12 +23,13 @@ An infinite, swipeable feed of mini puzzle games. Phase 1 builds Sudoku end to e
 
 ## Working rules
 
-The spec's "Rules for agents" section is authoritative. In short:
+The specs' "Rules for agents" sections are authoritative. In short:
 
 - One build-order task per session. Plan first and wait for approval.
 - No new dependencies without asking. Never edit `assets/puzzles/` by hand.
 - Game rules live only in `src/games/<game>/engine.ts`, written test-first. Components render and dispatch.
 - Routes live in `src/app/`; all other app code lives elsewhere under `src/`.
+- `src/feed/` stays game-agnostic: only `src/feed/games.ts` imports from `src/games/`.
 - Don't guess APIs: use Context7, the SDK 58 docs at https://docs.expo.dev/versions/v58.0.0/, or https://docs.expo.dev/llms.txt.
 - One feature branch per task, small commits, never commit to `main` or force-push.
 - End each task with a plain-language explanation of any non-obvious code.
