@@ -2,13 +2,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/theme/theme';
 
-import { useSudokuStore } from '../store';
+import { useSudoku } from '../context';
 
 export function Toolbar() {
-  const notesMode = useSudokuStore((state) => state.notesMode);
-  const undo = useSudokuStore((state) => state.undo);
-  const eraseSelected = useSudokuStore((state) => state.eraseSelected);
-  const toggleNotesMode = useSudokuStore((state) => state.toggleNotesMode);
+  const notesMode = useSudoku((state) => state.notesMode);
+  const undo = useSudoku((state) => state.undo);
+  const eraseSelected = useSudoku((state) => state.eraseSelected);
+  const toggleNotesMode = useSudoku((state) => state.toggleNotesMode);
 
   return (
     <View style={styles.toolbar}>

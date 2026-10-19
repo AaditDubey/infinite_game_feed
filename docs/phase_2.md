@@ -19,7 +19,7 @@ The feed is the heart of the app: one puzzle per screen, swipe to the next, swip
 
 **Out of scope for Phase 2:** other games, adaptive difficulty and its benchmarks, the cooldown that clears abandoned puzzles (Phase 2 only records what it needs), player ratings, streaks, the daily set, accounts or any backend, analytics, crash reporting, ads, subscriptions, sound, and visual polish. If a task seems to need one of these, stop and ask.
 
-**Prerequisite:** the Expo SDK 58 upgrade (PR #11) is merged, after its check on the phones with the App Store's SDK 58 Expo Go.
+**Prerequisite:** the Expo SDK 58 upgrade (PR #11) is merged. It is. The App Store's Expo Go is still on SDK 57, so until its SDK 58 build arrives, tasks are checked in a web browser (`npx expo start --web`) and phone checks wait (see `phase_1.md`, Running on a phone).
 
 ## Tech stack
 
@@ -395,9 +395,11 @@ Phase 2 closes when every box below is ticked on a real phone, not a simulator.
 
 Run each task as its own plan-mode session, on its own branch, and commit when it passes its checks.
 
-0. **SDK 58.** Merge PR #11 after its phone check. Every task below starts from SDK 58. The phone check passed on Oct 19.
+0. **SDK 58.** Merge PR #11 after its phone check. Every task below starts from SDK 58. Merged on Oct 19. The phone check recorded that day can't have run SDK 58, because the App Store's Expo Go was still on SDK 57, so it waits for the store update.
 1. **Spec.** Answer the open questions and finalize this file. Point `CLAUDE.md` at it alongside `phase_1.md`. Update `phase_1.md`'s later phases table to match the one here. Done on Oct 19.
-2. **One store per puzzle.** Add `createSudokuStore`, the context and `useSudoku`, and move the catalog and play history into `source.ts`. The app still shows one puzzle and behaves exactly as in Phase 1, and every Phase 1 test passes after porting.
+2. **One store per puzzle.** Add `createSudokuStore`, the context and `useSudoku`, and move the catalog and play history into `source.ts`. The app still shows one puzzle and behaves exactly as in Phase 1, and every Phase 1 test passes after porting. Done on Oct 19, with two steps left for later tasks:
+   - Until the feed exists, `src/games/sudoku/session.ts` holds the puzzle on screen, with Phase 1's launch, Next puzzle and band picker. Task 6 deletes it, along with the band picker, `useRestore.ts` and `useBackgroundPause.ts`.
+   - `createSudokuStore` takes `{ game, elapsedMs }` and still saves under Phase 1's `v1:sudoku:game`, because launch can only reopen that key until Task 7. Task 7 adds `pageId` and the per-page key.
 3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI.
 4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load.
 5. **Feed store.** Wire the feed rules, the Sudoku source and the per-puzzle stores together, in memory only, with tests: settling, pages ahead, dropping and abandons, and timers.

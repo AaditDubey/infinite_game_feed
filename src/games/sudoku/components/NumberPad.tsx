@@ -2,15 +2,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/theme/theme';
 
+import { useSudoku } from '../context';
 import { completedDigits } from '../engine';
-import { useSudokuStore } from '../store';
 import { DIGITS } from '../types';
 
 // A digit with every copy placed correctly is dimmed and can't be tapped: it has no cell left.
 export function NumberPad() {
-  const game = useSudokuStore((state) => state.game);
-  const notesMode = useSudokuStore((state) => state.notesMode);
-  const inputDigit = useSudokuStore((state) => state.inputDigit);
+  const game = useSudoku((state) => state.game);
+  const notesMode = useSudoku((state) => state.notesMode);
+  const inputDigit = useSudoku((state) => state.inputDigit);
   const done = completedDigits(game);
 
   return (

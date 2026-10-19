@@ -1,29 +1,23 @@
-import { tapForMistake } from '@/haptics/haptics';
-import { EMPTY_HISTORY, loadBundledCatalog } from '@/puzzles/loader';
-import { appendResult, loadSudoku, saveGame, savePlayHistory } from '@/storage/persistence';
-import { elapsedMs, start as startStopwatch } from '@/timer/stopwatch';
+import type { StoreApi } from 'zustand';
 
-import { createGame, placeDigit, toggleNote } from './engine';
-import { useSudokuStore } from './store';
-import type { Band, Digit, GameState, GridSize, Puzzle } from './types';
+import { tapForMistake } from '@/haptics/haptics';
+import { loadBundledCatalog } from '@/puzzles/loader';
+import { appendResult, saveGame } from '@/storage/persistence';
+import { elapsedMs } from '@/timer/stopwatch';
+
+import { createGame, placeDigit } from './engine';
+import { markSolved } from './source';
+import { createSudokuStore, type SudokuState } from './store';
+import type { Digit, GameState } from './types';
 
 jest.mock('@/haptics/haptics', () => ({ tapForMistake: jest.fn() }));
-jest.mock('@/storage/persistence', () => ({
-  loadSudoku: jest.fn(),
-  saveGame: jest.fn(),
-  savePlayHistory: jest.fn(),
-  appendResult: jest.fn(),
-}));
+jest.mock('@/storage/persistence', () => ({ saveGame: jest.fn(), appendResult: jest.fn() }));
+jest.mock('./source', () => ({ markSolved: jest.fn() }));
 
 const CATALOG = loadBundledCatalog();
 
 // The first band 1 puzzle in the 9×9 pack, so every run uses the same board.
 const PUZZLE = CATALOG[0];
-
-// A band's puzzles of one size, in pack order.
-function puzzlesOf(band: Band, size: GridSize): Puzzle[] {
-  return CATALOG.filter((puzzle) => puzzle.band === band && puzzle.size === size);
-}
 
 function emptyCells(game: GameState): number[] {
   return game.cells.flatMap((cell, index) => (cell.value === null ? [index] : []));
@@ -41,16 +35,18 @@ function fillCorrectly(game: GameState, indices: number[]): GameState {
   return indices.reduce((state, index) => placeDigit(state, index, answer(state, index)), game);
 }
 
-const store = () => useSudokuStore.getState();
+let page: StoreApi<SudokuState>;
+const store = () => page.getState();
 const start = createGame(PUZZLE);
 const empties = emptyCells(start);
 const [empty, otherEmpty] = empties;
 const lastEmpty = empties[empties.length - 1];
 const given = start.cells.findIndex((cell) => cell.given);
+const solvedGame = fillCorrectly(start, empties);
 
 // Fills every empty cell but the last one, then places the last digit at `solvedAt` ms.
 function solveAt(solvedAt: number) {
-  useSudokuStore.setState({ game: fillCorrectly(start, empties.slice(0, -1)) });
+  page.setState({ game: fillCorrectly(start, empties.slice(0, -1)) });
   store().select(lastEmpty);
   jest.setSystemTime(solvedAt);
   store().inputDigit(answer(start, lastEmpty));
@@ -59,18 +55,9 @@ function solveAt(solvedAt: number) {
 beforeEach(() => {
   jest.useFakeTimers();
   jest.setSystemTime(0);
-  useSudokuStore.setState({
-    ready: true,
-    band: 1,
-    // PUZZLE was served last, so Next puzzle moves on to another one.
-    history: { ...EMPTY_HISTORY, lastServed: [PUZZLE.id] },
-    game: start,
-    timer: startStopwatch(0),
-    selected: null,
-    notesMode: false,
-    flash: { cells: [], id: 0 },
-  });
-  // Setting the state above saved it, so every test starts with no calls recorded.
+  page = createSudokuStore({ game: start, elapsedMs: 0 });
+  store().activate(0);
+  // Activating saved the game, so every test starts with no calls recorded.
   jest.clearAllMocks();
 });
 
@@ -127,7 +114,7 @@ describe('moves', () => {
   it('flashes the cells of a row that a correct digit completes', () => {
     const row = Array.from({ length: 9 }, (_, col) => Math.floor(empty / 9) * 9 + col);
     const others = row.filter((index) => index !== empty && start.cells[index].value === null);
-    useSudokuStore.setState({ game: fillCorrectly(start, others), flash: { cells: [], id: 4 } });
+    page.setState({ game: fillCorrectly(start, others), flash: { cells: [], id: 4 } });
 
     store().select(empty);
     store().inputDigit(answer(start, empty));
@@ -149,13 +136,21 @@ describe('moves', () => {
   it("doesn't update when the engine ignores a move", () => {
     store().select(given);
     const listener = jest.fn();
-    const unsubscribe = useSudokuStore.subscribe(listener);
+    const unsubscribe = page.subscribe(listener);
     store().inputDigit(1);
     store().eraseSelected();
     store().undo();
     unsubscribe();
     expect(listener).not.toHaveBeenCalled();
     expect(store().game).toBe(start);
+  });
+
+  it('keeps each puzzle to its own store', () => {
+    const other = createSudokuStore({ game: start, elapsedMs: 0 });
+    store().select(empty);
+    store().inputDigit(answer(start, empty));
+    expect(other.getState().selected).toBeNull();
+    expect(other.getState().game).toBe(start);
   });
 });
 
@@ -167,132 +162,65 @@ describe('timer and solving', () => {
     expect(elapsedMs(store().timer, 500_000)).toBe(90_000);
   });
 
-  it('records the solve in the play history', () => {
+  it('records the solve with the Sudoku source', () => {
     solveAt(1_000);
-    expect(store().history.solved).toEqual([PUZZLE.id]);
+    expect(markSolved).toHaveBeenCalledTimes(1);
+    expect(markSolved).toHaveBeenCalledWith(PUZZLE.id);
   });
 
   it("doesn't count time while the app is in the background", () => {
-    jest.setSystemTime(10_000);
-    store().pauseTimer();
-    jest.setSystemTime(70_000);
-    store().resumeTimer();
-    jest.setSystemTime(75_000);
-    expect(elapsedMs(store().timer, Date.now())).toBe(15_000);
+    store().deactivate(10_000);
+    store().activate(70_000);
+    expect(elapsedMs(store().timer, 75_000)).toBe(15_000);
   });
 
   it('stays stopped when the app comes back after a solve', () => {
     solveAt(30_000);
-    store().pauseTimer();
-    jest.setSystemTime(40_000);
-    store().resumeTimer();
+    store().deactivate(30_000);
+    store().activate(40_000);
     expect(store().timer.runningSince).toBeNull();
     expect(elapsedMs(store().timer, 50_000)).toBe(30_000);
   });
 });
 
-describe('next puzzle and band picker', () => {
-  it('serves another puzzle from the same band and starts it fresh', () => {
-    solveAt(60_000);
-    store().nextPuzzle();
-
-    const { game, timer, selected, history } = store();
-    expect(game.puzzle.band).toBe(1);
-    expect(game.puzzle.id).not.toBe(PUZZLE.id);
-    expect(game.mistakes).toBe(0);
-    expect(selected).toBeNull();
-    expect(timer).toEqual({ elapsedMs: 0, runningSince: 60_000 });
-    expect(history.solved).toEqual([PUZZLE.id]);
-    expect(history.lastServed).toContain(game.puzzle.id);
+describe('starting and leaving', () => {
+  it('starts paused at the play time so far, and runs once activated', () => {
+    const resumed = createSudokuStore({ game: start, elapsedMs: 83_000 });
+    expect(resumed.getState().timer).toEqual({ elapsedMs: 83_000, runningSince: null });
+    resumed.getState().activate(1_000_000);
+    expect(elapsedMs(resumed.getState().timer, 1_010_000)).toBe(93_000);
   });
 
-  it('turns Notes off for the next puzzle', () => {
-    store().toggleNotesMode();
-    store().nextPuzzle();
-    expect(store().notesMode).toBe(false);
-  });
-
-  it('switches to a puzzle from the chosen band', () => {
-    jest.setSystemTime(5_000);
-    store().chooseBand(4);
-    expect(store().band).toBe(4);
-    expect(store().game.puzzle.band).toBe(4);
-    expect(store().timer).toEqual({ elapsedMs: 0, runningSince: 5_000 });
-  });
-
-  it('ignores the band already chosen', () => {
-    store().chooseBand(1);
-    expect(store().game).toBe(start);
-  });
-});
-
-describe('restoring on launch', () => {
-  let random: jest.SpyInstance;
-
-  beforeEach(() => {
-    useSudokuStore.setState({ ready: false });
-    jest.clearAllMocks();
-    random = jest.spyOn(Math, 'random').mockReturnValue(0.99); // picks 9×9 when both are open
-  });
-
-  afterEach(() => {
-    random.mockRestore();
-  });
-
-  it('starts out not ready', () => {
-    expect(useSudokuStore.getInitialState().ready).toBe(false);
-  });
-
-  it('resumes an unsolved saved game where it left off', async () => {
-    const hard = createGame(puzzlesOf(3, 6)[0]);
-    const [wrongCell, notedCell] = emptyCells(hard);
-    const saved = toggleNote(
-      placeDigit(hard, wrongCell, wrongDigit(hard, wrongCell)),
-      notedCell,
-      4,
-    );
-    const playHistory = { solved: [], lastServed: [hard.puzzle.id] };
-    jest
-      .mocked(loadSudoku)
-      .mockResolvedValueOnce({ game: { state: saved, elapsedMs: 83_000 }, playHistory });
+  it('saves nothing until activated', () => {
     jest.setSystemTime(1_000_000);
-    await store().restore();
-
-    expect(store()).toMatchObject({ ready: true, band: 3, game: saved, history: playHistory });
-    expect(elapsedMs(store().timer, 1_010_000)).toBe(93_000);
+    const resumed = createSudokuStore({ game: start, elapsedMs: 83_000 });
+    expect(saveGame).not.toHaveBeenCalled();
+    resumed.getState().activate(1_000_000);
+    expect(saveGame).toHaveBeenCalledWith(start, 83_000);
   });
 
-  it("serves the next unsolved puzzle in a solved game's band, in pack order", async () => {
-    const [first, second, third] = puzzlesOf(4, 9);
-    const firstGame = createGame(first);
-    jest.mocked(loadSudoku).mockResolvedValueOnce({
-      game: { state: fillCorrectly(firstGame, emptyCells(firstGame)), elapsedMs: 200_000 },
-      playHistory: { solved: [first.id, second.id], lastServed: [first.id] },
-    });
-    jest.setSystemTime(5_000);
-    await store().restore();
-
-    expect(store().ready).toBe(true);
-    expect(store().band).toBe(4);
-    expect(store().game.puzzle).toEqual(third);
-    expect(store().timer).toEqual({ elapsedMs: 0, runningSince: 5_000 });
+  it("keeps a solved puzzle's timer stopped when activated", () => {
+    const solved = createSudokuStore({ game: solvedGame, elapsedMs: 30_000 });
+    solved.getState().activate(5_000);
+    expect(solved.getState().timer).toEqual({ elapsedMs: 30_000, runningSince: null });
   });
 
-  it('starts on Easy when nothing was saved, and saves the new puzzle', async () => {
-    jest.mocked(loadSudoku).mockResolvedValueOnce({ game: null, playHistory: EMPTY_HISTORY });
-    await store().restore();
-
-    expect(store().ready).toBe(true);
-    expect(store().game.puzzle.band).toBe(1);
-    expect(saveGame).toHaveBeenCalledWith(store().game, 0);
-    expect(savePlayHistory).toHaveBeenCalledWith(store().history);
+  it('is just solved from the solving move until the puzzle is left', () => {
+    store().select(empty);
+    store().inputDigit(answer(start, empty));
+    expect(store().justSolved).toBe(false);
+    solveAt(1_000);
+    expect(store().justSolved).toBe(true);
+    store().deactivate(2_000);
+    expect(store().justSolved).toBe(false);
+    store().activate(3_000);
+    expect(store().justSolved).toBe(false);
   });
 
-  it('does nothing once the game is ready', async () => {
-    useSudokuStore.setState({ ready: true });
-    await store().restore();
-    expect(loadSudoku).not.toHaveBeenCalled();
-    expect(store().game).toBe(start);
+  it("isn't just solved when made from a solved game", () => {
+    const solved = createSudokuStore({ game: solvedGame, elapsedMs: 30_000 });
+    solved.getState().activate(5_000);
+    expect(solved.getState().justSolved).toBe(false);
   });
 });
 
@@ -313,9 +241,9 @@ describe('saving', () => {
     expect(saveGame).not.toHaveBeenCalled();
   });
 
-  it('saves the play time when the app goes to the background', () => {
+  it('saves the play time when the puzzle is left or the app goes to the background', () => {
     jest.setSystemTime(40_000);
-    store().pauseTimer();
+    store().deactivate(40_000);
     expect(saveGame).toHaveBeenCalledWith(start, 40_000);
   });
 
@@ -325,29 +253,11 @@ describe('saving', () => {
     expect(saveGame).toHaveBeenCalledWith(start, 25_000);
     expect(store().timer.runningSince).not.toBeNull();
   });
-
-  it('saves the play history when a puzzle is solved and when the next one is served', () => {
-    solveAt(1_000);
-    expect(savePlayHistory).toHaveBeenLastCalledWith(
-      expect.objectContaining({ solved: [PUZZLE.id] }),
-    );
-    store().nextPuzzle();
-    expect(savePlayHistory).toHaveBeenLastCalledWith(store().history);
-    expect(savePlayHistory).toHaveBeenCalledTimes(2);
-  });
-
-  it("doesn't save before restore() has run", () => {
-    useSudokuStore.setState({ ready: false });
-    store().select(empty);
-    store().inputDigit(wrongDigit(start, empty));
-    store().saveNow();
-    expect(saveGame).not.toHaveBeenCalled();
-  });
 });
 
 describe('results log', () => {
   it('logs a solve with the puzzle, band, time, play time and mistakes', () => {
-    useSudokuStore.setState({
+    page.setState({
       game: { ...fillCorrectly(start, empties.slice(0, -1)), mistakes: 2 },
       timer: { elapsedMs: 5_000, runningSince: 10_000 }, // 5 s played before a restart
     });
@@ -365,17 +275,5 @@ describe('results log', () => {
       elapsedMs: 85_000,
       mistakes: 2,
     });
-  });
-
-  it('logs nothing more for Next puzzle', () => {
-    solveAt(1_000);
-    store().nextPuzzle();
-    expect(appendResult).toHaveBeenCalledTimes(1);
-  });
-
-  // Abandons arrive with Phase 2's swipe.
-  it('logs nothing when the band picker leaves a puzzle unsolved', () => {
-    store().chooseBand(3);
-    expect(appendResult).not.toHaveBeenCalled();
   });
 });

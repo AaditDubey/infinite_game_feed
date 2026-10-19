@@ -2,14 +2,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/theme/theme';
 
-import { useSudokuStore } from '../store';
+import { useSudoku } from '../context';
+import { useSudokuSession } from '../session';
 import { BAND_LABELS, BANDS } from '../types';
 
 // For testing: Phase 2's adaptive difficulty replaces it. Choosing another band starts a new
 // puzzle straight away.
 export function BandPicker() {
-  const current = useSudokuStore((state) => state.band);
-  const chooseBand = useSudokuStore((state) => state.chooseBand);
+  const current = useSudoku((state) => state.game.puzzle.band);
+  const chooseBand = useSudokuSession((state) => state.chooseBand);
 
   return (
     <View style={styles.picker}>

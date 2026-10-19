@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
-import { useSudokuStore } from './store';
+import { useSudokuSession } from './session';
 
 // Pauses the timer while the app is in the background: another app, the home screen or a
 // locked phone. iOS's brief "inactive" state (Control Center, Notification Center, the app
@@ -9,20 +9,21 @@ import { useSudokuStore } from './store';
 // The play time is saved there anyway, because the app switcher can close the app straight
 // from that state, with no background event first.
 export function useBackgroundPause() {
-  const pauseTimer = useSudokuStore((state) => state.pauseTimer);
-  const resumeTimer = useSudokuStore((state) => state.resumeTimer);
-  const saveNow = useSudokuStore((state) => state.saveNow);
-
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
+      // Whichever puzzle is on screen when the event arrives; Next puzzle swaps it.
+      const page = useSudokuSession.getState().page?.getState();
+      if (page === undefined) {
+        return;
+      }
       if (state === 'background') {
-        pauseTimer(); // the store saves the paused timer
+        page.deactivate(Date.now()); // the store saves the paused timer
       } else if (state === 'inactive') {
-        saveNow();
+        page.saveNow();
       } else if (state === 'active') {
-        resumeTimer();
+        page.activate(Date.now());
       }
     });
     return () => subscription.remove();
-  }, [pauseTimer, resumeTimer, saveNow]);
+  }, []);
 }

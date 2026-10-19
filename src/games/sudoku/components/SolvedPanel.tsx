@@ -3,14 +3,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from '@/theme/theme';
 import * as stopwatch from '@/timer/stopwatch';
 
-import { useSudokuStore } from '../store';
+import { useSudoku } from '../context';
+import { useSudokuSession } from '../session';
 
 // Takes the place of the number pad and toolbar once the puzzle is solved, at the same height,
 // so the board stays where it is.
 export function SolvedPanel() {
-  const mistakes = useSudokuStore((state) => state.game.mistakes);
-  const timer = useSudokuStore((state) => state.timer);
-  const nextPuzzle = useSudokuStore((state) => state.nextPuzzle);
+  const mistakes = useSudoku((state) => state.game.mistakes);
+  const timer = useSudoku((state) => state.timer);
+  const nextPuzzle = useSudokuSession((state) => state.nextPuzzle);
 
   // The timer stopped at the solving move, so the time it has counted is final.
   const time = stopwatch.formatClock(timer.elapsedMs);
