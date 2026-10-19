@@ -14,7 +14,7 @@ Read `docs/phase_1.md` (the Phase 1 spec) and `docs/phase_2.md` (the Phase 2 spe
 
 ## Expo has changed: don't trust training data
 
-This project uses Expo SDK 57. Expo ships breaking changes every SDK release. Before writing or reviewing code that touches an Expo, EAS or React Native API, read the versioned docs at https://docs.expo.dev/versions/v57.0.0/, or start from https://docs.expo.dev/llms.txt. Don't answer from memory.
+This project uses Expo SDK 58. Expo ships breaking changes every SDK release. Before writing or reviewing code that touches an Expo, EAS or React Native API, read the versioned docs at https://docs.expo.dev/versions/v58.0.0/, or start from https://docs.expo.dev/llms.txt. Don't answer from memory.
 
 - Routes live in `src/app/`: every file there is a screen, and `_layout.tsx` files define navigators. Keep non-route code outside `src/app/`.
 - `ios/` and `android/` are generated (Continuous Native Generation). Never create or edit them by hand; configure native behavior in `app.json` and config plugins.
