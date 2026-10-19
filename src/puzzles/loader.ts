@@ -11,9 +11,12 @@ const GRID_SIZES: readonly GridSize[] = [6, 9];
 export interface PlayHistory {
   solved: readonly string[]; // ids of solved puzzles; skipped or abandoned ones stay unplayed
   lastServed: readonly string[]; // the puzzle served most recently for each band and size
+  // When each abandoned puzzle was last abandoned, in ms since 1970, by puzzle id. A solve
+  // removes the entry. Nothing reads it yet: a later cooldown will hold these puzzles back.
+  abandonedAt: Readonly<Record<string, number>>;
 }
 
-export const EMPTY_HISTORY: PlayHistory = { solved: [], lastServed: [] };
+export const EMPTY_HISTORY: PlayHistory = { solved: [], lastServed: [], abandonedAt: {} };
 
 // Every puzzle shipped with the app.
 export function loadBundledCatalog(): Puzzle[] {
@@ -114,16 +117,32 @@ export function pickNextPuzzle(
     history: {
       solved: [...solved],
       lastServed: [...history.lastServed.filter((id) => !ofSizeIds.has(id)), puzzle.id],
+      abandonedAt: history.abandonedAt,
     },
   };
 }
 
-// Only solved puzzles count as played for the no-repeat rule.
+// Only solved puzzles count as played for the no-repeat rule. A solve also clears the
+// puzzle's abandon, if it has one.
 export function markSolved(history: PlayHistory, puzzleId: string): PlayHistory {
-  if (history.solved.includes(puzzleId)) {
+  const solved = history.solved.includes(puzzleId);
+  const abandoned = Object.hasOwn(history.abandonedAt, puzzleId);
+  if (solved && !abandoned) {
     return history;
   }
-  return { ...history, solved: [...history.solved, puzzleId] };
+  return {
+    ...history,
+    solved: solved ? history.solved : [...history.solved, puzzleId],
+    abandonedAt: Object.fromEntries(
+      Object.entries(history.abandonedAt).filter(([id]) => id !== puzzleId),
+    ),
+  };
+}
+
+// An abandoned puzzle stays unplayed, so it can be served again. When it was abandoned is kept
+// for the cooldown that will hold such puzzles back for a while.
+export function markAbandoned(history: PlayHistory, puzzleId: string, at: number): PlayHistory {
+  return { ...history, abandonedAt: { ...history.abandonedAt, [puzzleId]: at } };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

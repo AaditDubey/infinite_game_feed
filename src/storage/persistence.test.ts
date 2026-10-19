@@ -51,6 +51,7 @@ function playedGame(puzzle: Puzzle): GameState {
 const HISTORY: PlayHistory = {
   solved: ['sudoku-9x9-001-0002'],
   lastServed: ['sudoku-9x9-001-0003', 'sudoku-6x6-001-0001'],
+  abandonedAt: { 'sudoku-6x6-001-0001': 1_790_000_000_000 },
 };
 
 const SOLVE: ResultEntry = {
@@ -61,6 +62,16 @@ const SOLVE: ResultEntry = {
   at: 1_790_000_000_000,
   elapsedMs: 83_000,
   mistakes: 2,
+};
+
+const ABANDON: ResultEntry = {
+  outcome: 'abandoned',
+  puzzleId: 'sudoku-6x6-001-0042',
+  size: 6,
+  band: 1,
+  at: 1_792_400_000_000,
+  elapsedMs: 48_000,
+  mistakes: 1,
 };
 
 let warn: jest.SpyInstance;
@@ -169,6 +180,19 @@ describe('play history', () => {
     await AsyncStorage.setItem(KEYS.playHistory, JSON.stringify({ solved: 'all of them' }));
     expect((await loadSudoku(catalog)).playHistory).toEqual(EMPTY_HISTORY);
   });
+
+  it('loads a Phase 1 play history, which has no abandons, with none', async () => {
+    const phase1 = { solved: HISTORY.solved, lastServed: HISTORY.lastServed };
+    await AsyncStorage.setItem(KEYS.playHistory, JSON.stringify(phase1));
+    expect((await loadSudoku(catalog)).playHistory).toEqual({ ...phase1, abandonedAt: {} });
+  });
+
+  it('keeps the rest of the history when its abandons are unreadable', async () => {
+    for (const abandonedAt of [['sudoku-6x6-001-0001'], { 'sudoku-6x6-001-0001': 'yesterday' }]) {
+      await AsyncStorage.setItem(KEYS.playHistory, JSON.stringify({ ...HISTORY, abandonedAt }));
+      expect((await loadSudoku(catalog)).playHistory).toEqual({ ...HISTORY, abandonedAt: {} });
+    }
+  });
 });
 
 describe('results log', () => {
@@ -183,8 +207,20 @@ describe('results log', () => {
     expect(await loadResults()).toEqual([SOLVE, second]);
   });
 
+  it('keeps abandons as well as solves', async () => {
+    void appendResult(SOLVE);
+    void appendResult(ABANDON);
+    expect(await loadResults()).toEqual([SOLVE, ABANDON]);
+  });
+
+  it('still reads a log written by Phase 1', async () => {
+    await AsyncStorage.setItem(KEYS.results, JSON.stringify([SOLVE]));
+    await appendResult(ABANDON);
+    expect(await loadResults()).toEqual([SOLVE, ABANDON]);
+  });
+
   it("keeps entries it can't read when it appends", async () => {
-    const later = { outcome: 'abandoned', puzzleId: 'sudoku-9x9-001-0004' };
+    const later = { ...SOLVE, outcome: 'timedOut' }; // an outcome this version doesn't know
     await AsyncStorage.setItem(KEYS.results, JSON.stringify([later]));
     await appendResult(SOLVE);
 

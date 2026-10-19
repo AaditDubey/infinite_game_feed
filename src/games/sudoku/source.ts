@@ -1,6 +1,7 @@
 import {
   EMPTY_HISTORY,
   loadBundledCatalog,
+  markAbandoned as recordAbandon,
   markSolved as recordSolve,
   pickNextPuzzle,
   type PlayHistory,
@@ -31,13 +32,20 @@ export function pick(band: Band, random: () => number): Puzzle {
   return next.puzzle;
 }
 
-// A solved puzzle counts as played, so it isn't served again until its band starts over.
+// A solved puzzle counts as played, so it isn't served again until its band starts over. A solve
+// also clears the puzzle's abandon.
 export function markSolved(puzzleId: string): void {
   const next = recordSolve(history, puzzleId);
   if (next !== history) {
     history = next;
     void savePlayHistory(history);
   }
+}
+
+// An abandoned puzzle stays unplayed; `at` is when it was last left, in ms since 1970.
+export function markAbandoned(puzzleId: string, at: number): void {
+  history = recordAbandon(history, puzzleId, at);
+  void savePlayHistory(history);
 }
 
 export function find(puzzleId: string): Puzzle | undefined {

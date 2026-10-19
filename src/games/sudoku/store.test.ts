@@ -6,13 +6,13 @@ import { appendResult, saveGame } from '@/storage/persistence';
 import { elapsedMs } from '@/timer/stopwatch';
 
 import { createGame, placeDigit } from './engine';
-import { markSolved } from './source';
+import { markAbandoned, markSolved } from './source';
 import { createSudokuStore, type SudokuState } from './store';
 import type { Digit, GameState } from './types';
 
 jest.mock('@/haptics/haptics', () => ({ tapForMistake: jest.fn() }));
 jest.mock('@/storage/persistence', () => ({ saveGame: jest.fn(), appendResult: jest.fn() }));
-jest.mock('./source', () => ({ markSolved: jest.fn() }));
+jest.mock('./source', () => ({ markSolved: jest.fn(), markAbandoned: jest.fn() }));
 
 const CATALOG = loadBundledCatalog();
 
@@ -275,5 +275,41 @@ describe('results log', () => {
       elapsedMs: 85_000,
       mistakes: 2,
     });
+  });
+});
+
+describe('abandoning', () => {
+  it('logs the puzzle as abandoned, with its play time and mistakes so far', () => {
+    store().select(empty);
+    store().inputDigit(wrongDigit(start, empty));
+    store().deactivate(30_000); // swiped away
+    store().activate(100_000); // and back again
+    store().deactivate(112_000); // then away for good
+    store().abandon(112_000);
+
+    expect(appendResult).toHaveBeenCalledWith({
+      outcome: 'abandoned',
+      puzzleId: PUZZLE.id,
+      size: 9,
+      band: 1,
+      at: 112_000,
+      elapsedMs: 42_000,
+      mistakes: 1,
+    });
+  });
+
+  it('records the abandon with the Sudoku source', () => {
+    store().deactivate(30_000);
+    store().abandon(30_000);
+    expect(markAbandoned).toHaveBeenCalledWith(PUZZLE.id, 30_000);
+  });
+
+  it('does nothing for a solved puzzle, which is logged once, as solved', () => {
+    solveAt(30_000);
+    store().deactivate(30_000);
+    store().abandon(40_000);
+    expect(appendResult).toHaveBeenCalledTimes(1);
+    expect(appendResult).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'solved' }));
+    expect(markAbandoned).not.toHaveBeenCalled();
   });
 });

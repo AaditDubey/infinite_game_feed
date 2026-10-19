@@ -4,6 +4,7 @@ import {
   EMPTY_HISTORY,
   buildCatalog,
   loadBundledCatalog,
+  markAbandoned,
   markSolved,
   parsePack,
   pickNextPuzzle,
@@ -254,9 +255,21 @@ describe('pickNextPuzzle', () => {
     const history: PlayHistory = Object.freeze({
       solved: Object.freeze(['9x9-band1-1']),
       lastServed: Object.freeze(['6x6-band1-1']),
+      abandonedAt: Object.freeze({ '9x9-band1-2': 5_000 }),
     });
     pickNextPuzzle(CATALOG, 1, history, pickNine);
-    expect(history).toEqual({ solved: ['9x9-band1-1'], lastServed: ['6x6-band1-1'] });
+    expect(history).toEqual({
+      solved: ['9x9-band1-1'],
+      lastServed: ['6x6-band1-1'],
+      abandonedAt: { '9x9-band1-2': 5_000 },
+    });
+  });
+
+  it('keeps the abandons, and still serves an abandoned puzzle after the rest of its size', () => {
+    const start = markAbandoned(EMPTY_HISTORY, '9x9-band1-1', 5_000);
+    const { served, history } = serve(1, [pickNine, pickNine, pickNine, pickNine], false, start);
+    expect(served).toEqual(['9x9-band1-1', '9x9-band1-2', '9x9-band1-3', '9x9-band1-1']);
+    expect(history.abandonedAt).toEqual({ '9x9-band1-1': 5_000 });
   });
 
   it('throws when the band has no puzzles', () => {
@@ -288,8 +301,40 @@ describe('pickNextPuzzle', () => {
 
 describe('markSolved', () => {
   it('records a solved puzzle once and leaves lastServed alone', () => {
-    const history = markSolved({ solved: [], lastServed: ['9x9-band1-1'] }, '9x9-band1-1');
-    expect(history).toEqual({ solved: ['9x9-band1-1'], lastServed: ['9x9-band1-1'] });
+    const history = markSolved({ ...EMPTY_HISTORY, lastServed: ['9x9-band1-1'] }, '9x9-band1-1');
+    expect(history).toEqual({
+      solved: ['9x9-band1-1'],
+      lastServed: ['9x9-band1-1'],
+      abandonedAt: {},
+    });
     expect(markSolved(history, '9x9-band1-1')).toBe(history);
+  });
+
+  it("removes the puzzle's abandon, and only that one", () => {
+    let history = markAbandoned(EMPTY_HISTORY, '9x9-band1-1', 5_000);
+    history = markAbandoned(history, '6x6-band1-1', 6_000);
+    history = markSolved(history, '9x9-band1-1');
+    expect(history.solved).toEqual(['9x9-band1-1']);
+    expect(history.abandonedAt).toEqual({ '6x6-band1-1': 6_000 });
+  });
+
+  it('removes an abandon even when the puzzle was already solved', () => {
+    const solved = markSolved(EMPTY_HISTORY, '9x9-band1-1');
+    const history = markSolved(markAbandoned(solved, '9x9-band1-1', 5_000), '9x9-band1-1');
+    expect(history).toEqual({ solved: ['9x9-band1-1'], lastServed: [], abandonedAt: {} });
+  });
+});
+
+describe('markAbandoned', () => {
+  it('records when the puzzle was last abandoned, keeping it unplayed', () => {
+    const once = markAbandoned(EMPTY_HISTORY, '9x9-band1-1', 5_000);
+    const twice = markAbandoned(once, '9x9-band1-1', 9_000);
+    expect(once.abandonedAt).toEqual({ '9x9-band1-1': 5_000 });
+    expect(twice).toEqual({ solved: [], lastServed: [], abandonedAt: { '9x9-band1-1': 9_000 } });
+  });
+
+  it('leaves the history it was given unchanged', () => {
+    markAbandoned(EMPTY_HISTORY, '9x9-band1-1', 5_000);
+    expect(EMPTY_HISTORY.abandonedAt).toEqual({});
   });
 });
