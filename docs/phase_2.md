@@ -12,20 +12,22 @@ Delete this section once the spec is final.
 
 - Swiping back is allowed.
 - An abandon is any puzzle the player has seen but not finished.
-- After a solve, the feed waits for a swipe. A label at the bottom says "Swipe down for next puzzle", then disappears.
+- After a solve, the feed waits for a swipe. A label at the bottom says "Swipe up for next puzzle", then disappears.
+- The label appears after solves only until the player has learned the gesture.
 - Only Easy and Medium are served: 80% Easy, 20% Medium. The benchmarks for adaptive difficulty are decided later.
 - The feed is React Native's built-in `FlatList`.
+- The back history keeps 20 pages.
+- An abandon is logged when its page leaves the back history, so a puzzle you go back to and solve isn't counted as abandoned.
+- Abandoned puzzles should be cleared after some time so they can be served again. That's built later; Phase 2 records what it needs.
 
 **Proposals to confirm:** everything else in this file, in particular:
 
-- the 20-puzzle back history;
-- when an abandon is logged;
 - one Zustand store per puzzle;
 - the storage keys;
 - removing the "Next puzzle" button;
-- moving adaptive difficulty to Phase 3.
-
-The open questions are at the end.
+- moving adaptive difficulty to Phase 3;
+- the gesture counting as learned after 3 forward swipes;
+- recording abandons in the play history (`abandonedAt`) for the later cooldown.
 
 ## Context and scope
 
@@ -40,7 +42,7 @@ The feed is the heart of the app: one puzzle per screen, swipe to the next, swip
 - saving the whole feed, so closing the app loses nothing;
 - carrying over a Phase 1 game in progress.
 
-**Out of scope for Phase 2:** other games, adaptive difficulty and its benchmarks, player ratings, streaks, the daily set, accounts or any backend, analytics, crash reporting, ads, subscriptions, sound, and visual polish. If a task seems to need one of these, stop and ask.
+**Out of scope for Phase 2:** other games, adaptive difficulty and its benchmarks, the cooldown that clears abandoned puzzles (Phase 2 only records what it needs), player ratings, streaks, the daily set, accounts or any backend, analytics, crash reporting, ads, subscriptions, sound, and visual polish. If a task seems to need one of these, stop and ask.
 
 **Prerequisite:** the Expo SDK 58 upgrade (PR #11) is merged, after its check on the phones with the App Store's SDK 58 Expo Go.
 
@@ -88,7 +90,7 @@ src/
 │   ├── useFeedLifecycle.ts     # restore on launch, splash screen, app background and foreground
 │   └── components/
 │       ├── Feed.tsx            # the vertical FlatList
-│       └── SwipeHint.tsx       # the disappearing "Swipe down for next puzzle" label
+│       └── SwipeHint.tsx       # the disappearing "Swipe up for next puzzle" label
 ├── games/
 │   └── sudoku/
 │       ├── engine.ts           # unchanged
@@ -127,9 +129,9 @@ Phase 2 is one screen: the feed. Every page in it is a full puzzle screen. Taps 
 | --- | --- |
 | First launch ever | The feed starts with one puzzle, picked by the difficulty mix, and settles on it. A Phase 1 game in progress is carried over instead (see Persistence). |
 | Swipe forward or back | The feed follows the finger and settles on the next or previous page. One swipe moves exactly one page, however fast it is. There's nothing before the oldest page in the back history. |
-| The feed settles on a page | The page you left pauses its timer, saves, and records when you left (`leftAt`). The page you landed on becomes current: it's marked seen and its timer runs. If it's the newest page, the next puzzle is picked and drawn below it straight away. If more than 20 seen pages are now behind the current one, the oldest leave the feed (see Back history). |
+| The feed settles on a page | The page you left pauses its timer, saves, and records when you left (`leftAt`). The page you landed on becomes current: it's marked seen and its timer runs. A forward swipe counts toward learning the gesture. If it's the newest page, the next puzzle is picked and drawn below it straight away. If more than 20 seen pages are now behind the current one, the oldest leave the feed (see Back history). |
 | A move on the current page | Phase 1's rules. The page saves after every move. |
-| Solve | Phase 1's rules: the timer stops, input locks, the solve is logged, and the puzzle counts as played. The swipe label appears. The feed doesn't move. |
+| Solve | Phase 1's rules: the timer stops, input locks, the solve is logged, and the puzzle counts as played. The swipe label appears if the gesture isn't learned yet. The feed doesn't move. |
 | Swipe back to a solved page | It shows the solved board and the solved panel. The label doesn't appear again. |
 | Swipe back to an unsolved page | It's exactly as you left it: digits, notes, mistakes, undo history and time. Its timer resumes, and you can finish it. |
 | App goes to the background | Phase 1's rules, for the current page only: its timer pauses and it saves. iOS's brief inactive state saves without pausing. |
@@ -141,7 +143,7 @@ Phase 2 is one screen: the feed. Every page in it is a full puzzle screen. Taps 
 - **Seen:** a page counts as seen once the feed settles on it as the current page. The puzzle drawn ahead isn't seen until you land on it. With one page per swipe, every page behind the current one has been seen.
 - **Timer:** each page's timer starts the first time the page is seen. It runs only while that page is current and the app is in the foreground. Time spent on other pages, or in the background, doesn't count.
 - **Back history:** the feed keeps the 20 most recent seen pages behind the current one. When a 21st would be added, the oldest leaves the feed for good:
-  - If it's unsolved, it's logged as abandoned.
+  - If it's unsolved, it's logged as abandoned, and the play history records when (see Difficulty).
   - Its save is deleted.
   - The current page must not move on screen when pages leave the top of the list.
 - **Ahead:** exactly one unseen page is ready below the current one (`AHEAD = 1`). If the device pass shows a half-drawn page after a quick double swipe, raise it to 2. That's a constant, not a spec change.
@@ -149,8 +151,10 @@ Phase 2 is one screen: the feed. Every page in it is a full puzzle screen. Taps 
 ### Solving and the swipe label
 
 - The feed never moves by itself.
-- When a puzzle becomes solved, a label fades in at the bottom of the page: "Swipe down for next puzzle". After 3 seconds it fades out. It sits over the bottom of the page and doesn't block touches.
+- When a puzzle becomes solved and the gesture isn't learned yet, a label fades in at the bottom of the page: "Swipe up for next puzzle". After 3 seconds it fades out. It sits over the bottom of the page and doesn't block touches.
 - It appears only at the moment of solving: not when you swipe back to a solved page, and not after a restart on a solved page.
+- **Learning the gesture:** it counts as learned after the player's third forward swipe, that is, three times the feed settles on a later page than the one before. Back swipes don't count. Swipes that come before any solve do count, because they show the player already knows the gesture. From then on the label never appears.
+- The count is part of the saved feed, so it survives restarts. If the saved feed is unreadable and a fresh feed starts, the count starts over and the label shows for a few more solves. That's harmless.
 - Screen readers announce it once when it appears. Check the right API in the React Native docs for iOS and Android.
 - Colors and text size come from `theme.ts`.
 
@@ -159,6 +163,11 @@ Phase 2 is one screen: the feed. Every page in it is a full puzzle screen. Taps 
 - Each new page is Easy (band 1) with probability 0.8, and Medium (band 2) with probability 0.2. `pickBand` takes the random source, so tests can fix it.
 - Within the band, Phase 1's rules pick the puzzle: a random size among those with unplayed puzzles, then the next unplayed puzzle of that size in pack order after the last one served, with no solved puzzle repeating until the whole band has been solved.
 - A puzzle counts as served when it's picked as the next page, even before it's seen. An abandoned puzzle stays unplayed, so it comes round again after the rest of its band and size.
+- **Clearing abandoned puzzles, later.** The plan is to hold an abandoned puzzle back for a while, then clear it so it can be served again. That cooldown is built later, as its own task. Until then the rule above applies. Phase 2 only records what the cooldown needs, so it won't need a data migration:
+  - The play history gains `abandonedAt`: each abandoned puzzle's id, mapped to when it was last abandoned (ms since 1970). An abandon sets the entry; a solve removes it.
+  - A play history saved by Phase 1, which has no `abandonedAt`, loads with no abandons.
+  - Only `pick` will change: it will skip puzzles that are still cooling down.
+  - Decided with that task: how long the cooldown lasts, and what to serve when every unplayed puzzle in a band is cooling down.
 - Bands 3 to 5 stay in the packs, unused, until adaptive difficulty arrives.
 - Supply: 200 Easy and 200 Medium puzzles across both sizes. At 10 solves a day (8 Easy), Easy runs out after about 25 days and starts over. A second pack (`pack-9x9-002.json`, `pack-6x6-002.json`) can come from the pipeline whenever it's needed.
 - The benchmarks for adaptive difficulty (what counts as fast, slow or too many mistakes) are decided later. Phase 2 only records the results they need: every solve and every abandon.
@@ -181,6 +190,7 @@ Phase 2 is one screen: the feed. Every page in it is a full puzzle screen. Taps 
   ```
 
 - `at` is when the player last left the page (`leftAt`). `elapsedMs` and `mistakes` are totals across every visit.
+- The same `at` goes into the play history's `abandonedAt` (see Difficulty).
 - Each appearance of a puzzle in the feed gets exactly one entry: solved or abandoned.
   - A page you return to and solve is logged only as solved.
   - A page drawn ahead but never seen gets no entry.
@@ -193,9 +203,9 @@ Phase 2 is one screen: the feed. Every page in it is a full puzzle screen. Taps 
 
 | Key | Contents | Written |
 | --- | --- | --- |
-| `v1:feed` | The feed: its pages, the current one, and the next page id | When the feed settles, when a page is added and when pages leave |
+| `v1:feed` | The feed: its pages, the current one, the next page id, and the forward swipe count | When the feed settles, when a page is added and when pages leave |
 | `v1:sudoku:game:<pageId>` | One page's game, in Phase 1's saved-game format | After every move on that page, when you leave it, and when the app leaves the screen |
-| `v1:sudoku:playHistory` | Phase 1's no-repeat state | When a puzzle is picked or solved |
+| `v1:sudoku:playHistory` | Phase 1's no-repeat state, plus `abandonedAt` | When a puzzle is picked, solved or abandoned |
 | `v1:sudoku:results` | The results log | On each solve and abandon |
 
 The feed is saved like this:
@@ -213,7 +223,8 @@ The feed is saved like this:
     }
   ],
   "current": 20,
-  "nextId": 43
+  "nextId": 43,
+  "forwardSwipes": 3
 }
 ```
 
@@ -274,16 +285,19 @@ export interface FeedState {
   items: FeedItem[]; // oldest first: the back history, the current page, then the pages ahead
   current: number;   // index into items
   nextId: number;    // the number in the next page's id
+  forwardSwipes: number; // settles on a later page; stops counting at LEARNED_AFTER
 }
 
 export const BACK_HISTORY = 20; // seen pages kept behind the current one
 export const AHEAD = 1;         // unseen pages kept ready below the current one
+export const LEARNED_AFTER = 3; // forward swipes after which the swipe label stops
 
 // createFeed(first, now): a feed of one page, already seen
 // append(state, { game, puzzleId, band }): adds an unseen page at the end
 // settleOn(state, index, now): marks the page seen, records leftAt on the page left,
-//   and returns { state, dropped }: the pages that fell off the back history
+//   counts a forward swipe, and returns { state, dropped }: the pages that fell off the back history
 // missingAhead(state): how many pages to append to keep AHEAD pages ready
+// gestureLearned(state): forwardSwipes has reached LEARNED_AFTER
 ```
 
 The feed module never knows whether a page is solved. The feed store asks each dropped page's game store, and logs the unsolved ones as abandoned.
@@ -304,7 +318,8 @@ export function pickBand(random: () => number): Band; // random() in [0, 1): bel
 This holds the bundled catalog and the play history, which until now lived inside Phase 1's store.
 
 - `pick(band, random)` uses Phase 1's `pickNextPuzzle` and saves the play history.
-- `markSolved(puzzleId)` records a solve and saves the play history.
+- `markSolved(puzzleId)` records a solve, removes the puzzle from `abandonedAt`, and saves the play history.
+- `markAbandoned(puzzleId, at)` sets the puzzle's `abandonedAt` and saves the play history.
 - `find(puzzleId)` looks a puzzle up for restoring.
 
 It's loaded once at launch, before the feed.
@@ -325,7 +340,7 @@ export function createSudokuStore(init: {
   - `activate(now)`: the page became current, or the app came back. The timer runs unless the game is solved.
   - `deactivate(now)`: the page was left, or the app went to the background. The timer pauses and the game saves.
   - `saveNow()`: saves without pausing, for iOS's inactive state.
-- On a solve, the store stops the timer, logs the solve, and calls the Sudoku source's `markSolved`. A `justSolved` flag tells the page to show the swipe label.
+- On a solve, the store stops the timer, logs the solve, and calls the Sudoku source's `markSolved`. It sets a `justSolved` flag, and the page shows the swipe label if the feed says the gesture isn't learned yet.
 - Saving works as in Task 9: a store subscription saves the game whenever a move or the timer changes it, under the page's key.
 - `context.tsx` provides each page's store to its components. Phase 1's components change one line each: `useSudokuStore(selector)` becomes `useSudoku(selector)`.
 
@@ -335,8 +350,9 @@ One app-wide Zustand store.
 
 - It holds `ready`, the `FeedState` and each page's game store, created when a page is added and thrown away when it leaves.
 - `restore()` loads everything at launch, carries over a Phase 1 game, and makes sure a page is waiting ahead.
-- `settleOn(index)` deactivates the page left and activates the page reached. It picks new pages through `pickBand` and the game's source, logs abandons for dropped unsolved pages, deletes their saves, and saves the feed.
+- `settleOn(index)` deactivates the page left and activates the page reached. It picks new pages through `pickBand` and the game's source. For each dropped unsolved page it logs an abandon and calls the source's `markAbandoned`. It deletes dropped pages' saves and saves the feed.
 - `pauseCurrent`, `resumeCurrent` and `saveCurrentNow` serve the app lifecycle hook.
+- `Feed.tsx` passes each page whether the gesture is learned, so the page knows whether `justSolved` shows the swipe label.
 
 `src/feed/games.ts` maps `'sudoku'` to the Sudoku source, `createSudokuStore` and `SudokuPage`. It's the only file under `src/feed/` that imports from `src/games/`.
 
@@ -371,14 +387,14 @@ If `viewabilityConfig` is used, define it once outside the component: the docs s
 ## Testing
 
 - **Pure modules, written test-first:**
-  - `feed.ts`: settling forward and back, seen and `leftAt`, the 20-page limit, what's dropped, keeping pages ahead.
+  - `feed.ts`: settling forward and back, seen and `leftAt`, the 20-page limit, what's dropped, keeping pages ahead, and the forward swipe count (back swipes don't count; it stops at `LEARNED_AFTER`).
   - `difficulty.ts`: the 80/20 split with a fixed random source, and no band outside 1 and 2.
   - `paging.ts`: offsets to page indices, including in-between offsets.
 - **Stores, with persistence mocked as in Phase 1:**
-  - `source.test.ts`: picking with the no-repeat rule, and marking solves.
+  - `source.test.ts`: picking with the no-repeat rule, marking solves, and marking abandons (a later solve removes the entry).
   - The Sudoku `store.test.ts`: Phase 1's tests ported to `createSudokuStore`, plus activate, deactivate, `saveNow` and `justSolved`.
   - The feed `store.test.ts`: restore, settling, abandons logged only for dropped unsolved pages, and the timer of only the current page running.
-- **Persistence, with AsyncStorage's Jest mock:** the feed round trip, per-page saves, bad and stale data, deleting leftover save keys, abandoned entries, and the Phase 1 carry-over.
+- **Persistence, with AsyncStorage's Jest mock:** the feed round trip, per-page saves, bad and stale data, deleting leftover save keys, abandoned entries, `abandonedAt`, a Phase 1 play history without it, and the Phase 1 carry-over.
 - **No component tests.** They'd need React Native Testing Library, a new dependency, so ask first. Keep logic out of components so it's tested elsewhere. The swipe itself is checked on the phone.
 
 ## Commands and checks
@@ -392,8 +408,8 @@ Phase 2 closes when every box below is ticked on a real phone, not a simulator.
 - [ ] Swipe forward through at least 30 puzzles and back through the last 20 on the iPhone 13 Pro, in release mode, with no dropped frames and one page per swipe.
 - [ ] Swiping back restores each page's board, notes, mistakes, undo history and time, and an unsolved one can be finished.
 - [ ] Only Easy and Medium puzzles appear. The 80/20 mix is tested in code with a fixed random source.
-- [ ] Solving shows the solved panel and the disappearing swipe label, and the feed waits for a swipe.
-- [ ] A seen, unsolved page that leaves the back history is logged as abandoned with the right fields. A page drawn ahead but never seen isn't logged. A page solved after swiping back is logged only as solved.
+- [ ] Solving shows the solved panel, and the feed waits for a swipe. The disappearing swipe label shows on solves until the third forward swipe, then never again, even after a restart.
+- [ ] A seen, unsolved page that leaves the back history is logged as abandoned with the right fields, and its time is recorded in the play history's `abandonedAt`. A page drawn ahead but never seen isn't logged. A page solved after swiping back is logged only as solved.
 - [ ] Killing the app mid-feed and reopening it restores the current page, the back history and the page waiting ahead.
 - [ ] A Phase 1 game in progress carries over as the first page.
 - [ ] Each page's timer counts only while it's current and the app is in the foreground.
@@ -408,7 +424,7 @@ Run each task as its own plan-mode session, on its own branch, and commit when i
 1. **Spec.** Answer the open questions and finalize this file. Point `CLAUDE.md` at it alongside `phase_1.md`. Update `phase_1.md`'s later phases table to match the one here.
 2. **One store per puzzle.** Add `createSudokuStore`, the context and `useSudoku`, and move the catalog and play history into `source.ts`. The app still shows one puzzle and behaves exactly as in Phase 1, and every Phase 1 test passes after porting.
 3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI.
-4. **Abandons in the results log.** The `abandoned` outcome, its check on load, and tests. Phase 1's entries still load.
+4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load.
 5. **Feed store.** Wire the feed rules, the Sudoku source and the per-puzzle stores together, in memory only, with tests: settling, pages ahead, dropping and abandons, and timers.
 6. **Swipe feed UI.**
    - `Feed.tsx` with the settings above, `SudokuPage`, `SwipeHint` and the lifecycle hook.
@@ -428,10 +444,3 @@ Phase 1's rules for agents apply to every Phase 2 task. In addition:
 - No new libraries: no pager, gesture or testing library, without asking first.
 - Every speed claim is checked in release mode on a phone, not in dev mode.
 - If this spec and `phase_1.md` disagree, this file wins for Phase 2 work. Say so in the plan.
-
-## Open questions
-
-1. **Label wording.** In video feeds your finger moves *up* to bring in the next item, which people call both "swipe up" and "scroll down". Should the label say "Swipe up for next puzzle" to match the gesture, or keep "Swipe down for next puzzle"?
-2. **When an abandon is logged.** Proposed: when the page leaves the 20-page back history, so a puzzle you go back to and solve isn't counted as abandoned. The alternative is to log it the first time you swipe away unsolved, and also log a solve if you finish it later. That gives Phase 3's rating the result sooner but can put two entries in the log for one appearance.
-3. **The swipe label's lifetime.** After every solve, or only for the first few solves until the gesture is learned?
-4. **Back history length.** Is 20 pages right?
