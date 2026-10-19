@@ -56,8 +56,8 @@ The app is TypeScript on Expo SDK 57; the puzzle pipeline is Python plus Simon T
 
 | Phase | Adds |
 | --- | --- |
-| 2 | Vertical swipe feed with preloading; adaptive difficulty; abandons in the results log |
-| 3 | `@shopify/react-native-skia` for Rectangles and Queens; on-device Glicko-2 player rating; streaks; daily set |
+| 2 | Vertical swipe feed with preloading and a back history; a fixed Easy and Medium mix; abandons in the results log (see `docs/phase_2.md`) |
+| 3 | `@shopify/react-native-skia` for Rectangles and Queens in the feed; on-device Glicko-2 player rating; adaptive difficulty once its benchmarks are set; streaks; daily set |
 | 4 | PostHog analytics, Sentry crash reports, share card, onboarding; Maestro end-to-end tests |
 | 5 | EAS Build, Submit and Update; TestFlight and the Play closed test; the Android device pass Phase 1 skipped, before the Play closed test |
 | After launch | RevenueCat and AdMob (`react-native-google-mobile-ads`); Supabase for percentiles, age cohorts and friends |
@@ -206,7 +206,7 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 
 ### Screen
 
-- **Top bar:** band label, timer (mm:ss), mistake count, and a band picker for testing. Adaptive difficulty replaces the picker in Phase 2. There's no size picker; see Grid sizes.
+- **Top bar:** band label, timer (mm:ss), mistake count, and a band picker for testing. Phase 2 removes the picker, and adaptive difficulty arrives in Phase 3. There's no size picker; see Grid sizes.
 - **Board:** a square grid, 9×9 or 6×6, the largest that fits between the band picker and the number pad (full width on most phones, a little smaller on short ones), with thicker lines between the boxes (3×3 on 9×9; 3 wide and 2 tall on 6×6).
 - **Number pad:** digits 1 to the grid size (1–9 or 1–6). A digit's button dims once every copy of it (nine, or six) is placed correctly.
 - **Toolbar:** Undo, Erase, and a Notes toggle.
@@ -231,7 +231,7 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 - Save the game after every move: puzzle id, cells, notes, mistakes, elapsed time and undo history. Also save it when the app leaves the screen (the background, or iOS's brief inactive state), so the timer survives the app being killed: the iOS app switcher can close the app from the inactive state without a background event.
 - On launch, resume an unsolved saved game. After a solved one, serve the next puzzle in its band; with no save, start on Easy. The splash screen stays up until the save has loaded. A save that no longer fits its puzzle (unknown id, wrong cell count, changed givens and so on) is ignored, so a bad save starts a fresh game instead of stopping the app from opening.
 - Append to a results log on every solve: puzzle id, grid size, band, solved-at time, elapsed milliseconds, mistakes. Each entry is `{ outcome: 'solved', puzzleId, size, band, at, elapsedMs, mistakes }`, with `at` in milliseconds since 1970. In development builds each entry is also printed to the `npx expo start` terminal.
-- From Phase 2, also log an abandon (`outcome: 'abandoned'`) when a swipe leaves a game unsolved, with elapsed time and mistakes. Phase 3's rating will use these. The band picker is only for testing, so it logs nothing.
+- From Phase 2, also log an abandon (`outcome: 'abandoned'`) when an unsolved game leaves the feed's back history, with elapsed time and mistakes (see `docs/phase_2.md`). Phase 3's rating will use these. The band picker is only for testing, so it logs nothing.
 - Next puzzle, and the no-repeat rule:
   - A puzzle counts as played only once the player solves it. A skipped or abandoned puzzle stays unplayed and can be served again.
   - "Next puzzle" picks a size at random (even odds) among the sizes that still have unplayed puzzles in the band. It then serves the next unplayed puzzle of that size, in pack order after the last puzzle it served of that band and size, wrapping around to the start. So a skipped puzzle comes back only after every other unplayed puzzle of its band and size has been served.

@@ -1,33 +1,8 @@
 # Infinite Games App: Phase 2 Spec (Swipe feed)
 
-DRAFT, Oct 19, 2026 · @Aadit Dubey
+Oct 19, 2026 · @Aadit Dubey
 
 Phase 2 turns Phase 1's single Sudoku screen into an endless vertical feed of Sudoku puzzles that you swipe through, forward and back. This file lives at `docs/phase_2.md` and is the reference Claude Code works from. It builds on `docs/phase_1.md`, which still applies wherever this file doesn't say otherwise: the stack, the pipeline, the Sudoku rules, the quality bar and the rules for agents.
-
-## Draft status
-
-Delete this section once the spec is final.
-
-**Owner decisions (Oct 19):**
-
-- Swiping back is allowed.
-- An abandon is any puzzle the player has seen but not finished.
-- After a solve, the feed waits for a swipe. A label at the bottom says "Swipe up for next puzzle", then disappears.
-- The label appears after solves only until the player has learned the gesture.
-- Only Easy and Medium are served: 80% Easy, 20% Medium. The benchmarks for adaptive difficulty are decided later.
-- The feed is React Native's built-in `FlatList`.
-- The back history keeps 20 pages.
-- An abandon is logged when its page leaves the back history, so a puzzle you go back to and solve isn't counted as abandoned.
-- Abandoned puzzles should be cleared after some time so they can be served again. That's built later; Phase 2 records what it needs.
-
-**Proposals to confirm:** everything else in this file, in particular:
-
-- one Zustand store per puzzle;
-- the storage keys;
-- removing the "Next puzzle" button;
-- moving adaptive difficulty to Phase 3;
-- the gesture counting as learned after 3 forward swipes;
-- recording abandons in the play history (`abandonedAt`) for the later cooldown.
 
 ## Context and scope
 
@@ -421,7 +396,7 @@ Phase 2 closes when every box below is ticked on a real phone, not a simulator.
 Run each task as its own plan-mode session, on its own branch, and commit when it passes its checks.
 
 0. **SDK 58.** Merge PR #11 after its phone check. Every task below starts from SDK 58.
-1. **Spec.** Answer the open questions and finalize this file. Point `CLAUDE.md` at it alongside `phase_1.md`. Update `phase_1.md`'s later phases table to match the one here.
+1. **Spec.** Answer the open questions and finalize this file. Point `CLAUDE.md` at it alongside `phase_1.md`. Update `phase_1.md`'s later phases table to match the one here. Done on Oct 19.
 2. **One store per puzzle.** Add `createSudokuStore`, the context and `useSudoku`, and move the catalog and play history into `source.ts`. The app still shows one puzzle and behaves exactly as in Phase 1, and every Phase 1 test passes after porting.
 3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI.
 4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load.
