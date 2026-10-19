@@ -56,7 +56,7 @@ The app is TypeScript on Expo SDK 57; the puzzle pipeline is Python plus Simon T
 
 | Phase | Adds |
 | --- | --- |
-| 2 | Vertical swipe feed with preloading; adaptive difficulty |
+| 2 | Vertical swipe feed with preloading; adaptive difficulty; abandons in the results log |
 | 3 | `@shopify/react-native-skia` for Rectangles and Queens; on-device Glicko-2 player rating; streaks; daily set |
 | 4 | PostHog analytics, Sentry crash reports, share card, onboarding; Maestro end-to-end tests |
 | 5 | EAS Build, Submit and Update; TestFlight and the Play closed test |
@@ -79,6 +79,7 @@ One repo: the Expo app at the root, the Python pipeline in `pipeline/`. Each gam
 │   │       ├── engine.test.ts
 │   │       ├── store.ts        # Zustand store wrapping the engine
 │   │       ├── useBackgroundPause.ts  # pauses the timer while the app is in the background
+│   │       ├── useRestore.ts   # loads the saved game on launch, behind the splash screen
 │   │       └── components/     # Board, Cell, NumberPad, Toolbar, TopBar, BandPicker, SolvedPanel
 │   ├── haptics/
 │   │   └── haptics.ts          # light tap on mistakes
@@ -86,7 +87,8 @@ One repo: the Expo app at the root, the Python pipeline in `pipeline/`. Each gam
 │   │   ├── loader.ts           # loads packs, picks the next puzzle by band
 │   │   └── loader.test.ts
 │   ├── storage/
-│   │   └── persistence.ts      # AsyncStorage: saved game, results log
+│   │   ├── persistence.ts      # AsyncStorage: saved game, play history, results log
+│   │   └── persistence.test.ts
 │   ├── theme/
 │   │   └── theme.ts            # colors, spacing, font sizes
 │   └── timer/
@@ -226,16 +228,18 @@ Phase 1 is one screen: a Sudoku board, a number pad and a few controls. Taps mus
 
 ### Persistence
 
-- Save the game after every move: puzzle id, cells, notes, mistakes, elapsed time and undo history. On launch, resume an unsolved saved game.
-- Append to a results log on every solve: puzzle id, grid size, band, solved-at time, elapsed milliseconds, mistakes.
-- Also log an abandon when the band picker leaves a game unsolved (from Phase 2, also when a swipe does), with elapsed time and mistakes. Phase 3's rating will use these.
+- Save the game after every move: puzzle id, cells, notes, mistakes, elapsed time and undo history. Also save it when the app leaves the screen (the background, or iOS's brief inactive state), so the timer survives the app being killed: the iOS app switcher can close the app from the inactive state without a background event.
+- On launch, resume an unsolved saved game. After a solved one, serve the next puzzle in its band; with no save, start on Easy. The splash screen stays up until the save has loaded. A save that no longer fits its puzzle (unknown id, wrong cell count, changed givens and so on) is ignored, so a bad save starts a fresh game instead of stopping the app from opening.
+- Append to a results log on every solve: puzzle id, grid size, band, solved-at time, elapsed milliseconds, mistakes. Each entry is `{ outcome: 'solved', puzzleId, size, band, at, elapsedMs, mistakes }`, with `at` in milliseconds since 1970. In development builds each entry is also printed to the `npx expo start` terminal.
+- From Phase 2, also log an abandon (`outcome: 'abandoned'`) when a swipe leaves a game unsolved, with elapsed time and mistakes. Phase 3's rating will use these. The band picker is only for testing, so it logs nothing.
 - Next puzzle, and the no-repeat rule:
   - A puzzle counts as played only once the player solves it. A skipped or abandoned puzzle stays unplayed and can be served again.
   - "Next puzzle" picks a size at random (even odds) among the sizes that still have unplayed puzzles in the band. It then serves the next unplayed puzzle of that size, in pack order after the last puzzle it served of that band and size, wrapping around to the start. So a skipped puzzle comes back only after every other unplayed puzzle of its band and size has been served.
   - No solved puzzle repeats until every puzzle in the band, both sizes, has been solved. Then that band starts over.
   - Save the solved puzzle ids and the last puzzle served for each band and size, so the order survives a restart.
   - The random source is passed in, so tests can fix it.
-- Prefix every storage key with `v1:` so the format can change later.
+- Prefix every storage key with `v1:` so the format can change later. Phase 1 uses `v1:sudoku:game`, `v1:sudoku:playHistory` and `v1:sudoku:results`.
+- The results log is one JSON list, about 150 bytes per entry. Android caps one stored value at about 2 MB, so Phase 3 may need to split the log.
 
 ### Engine design
 
@@ -315,7 +319,7 @@ Phase 1 closes when every box below is ticked on a real phone, not a simulator.
 - [ ] Engine tests cover placing, wrong digits and mistake counting, notes and note cleanup, erase, undo, locked givens and correct digits, and solve detection, on both grid sizes.
 - [ ] A full 9×9 puzzle and a full 6×6 puzzle can each be played from start to solved screen on your phone.
 - [ ] Killing the app mid-game and reopening it restores the board, notes, mistakes and timer.
-- [ ] Solves and abandons appear in the results log with the right fields.
+- [ ] Solves appear in the results log with the right fields. (Abandons arrive with Phase 2's swipe.)
 - [ ] No file in `assets/puzzles/` was edited by hand.
 
 ## Build order
