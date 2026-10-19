@@ -4,12 +4,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '@/theme/theme';
 import * as stopwatch from '@/timer/stopwatch';
 
-import { useSudokuStore } from '../store';
+import { useSudoku } from '../context';
 import { BAND_LABELS } from '../types';
 
 export function TopBar() {
-  const band = useSudokuStore((state) => state.game.puzzle.band);
-  const mistakes = useSudokuStore((state) => state.game.mistakes);
+  const band = useSudoku((state) => state.game.puzzle.band);
+  const mistakes = useSudoku((state) => state.game.mistakes);
 
   return (
     <View style={styles.bar}>
@@ -26,7 +26,7 @@ const TICK_MS = 250;
 // Between ticks `now` can trail the timer's start; the stopwatch then counts zero for the
 // running stretch, which is what a new or just-resumed timer should show.
 function Clock() {
-  const timer = useSudokuStore((state) => state.timer);
+  const timer = useSudoku((state) => state.timer);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {

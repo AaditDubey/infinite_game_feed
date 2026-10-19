@@ -7,19 +7,30 @@ import { NumberPad } from '@/games/sudoku/components/NumberPad';
 import { SolvedPanel } from '@/games/sudoku/components/SolvedPanel';
 import { Toolbar } from '@/games/sudoku/components/Toolbar';
 import { TopBar } from '@/games/sudoku/components/TopBar';
-import { useSudokuStore } from '@/games/sudoku/store';
+import { SudokuStoreProvider, useSudoku } from '@/games/sudoku/context';
 import { useBackgroundPause } from '@/games/sudoku/useBackgroundPause';
 import { useRestore } from '@/games/sudoku/useRestore';
 import { theme } from '@/theme/theme';
 
 export default function Index() {
-  const ready = useRestore();
-  const solved = useSudokuStore((state) => state.game.solved);
+  const page = useRestore();
   useBackgroundPause();
 
-  if (!ready) {
+  if (page === null) {
     return null; // the splash screen is still showing
   }
+
+  // Next puzzle swaps the store without redrawing the screen from scratch, so the board keeps
+  // its measured size and never flashes empty.
+  return (
+    <SudokuStoreProvider store={page}>
+      <PuzzleScreen />
+    </SudokuStoreProvider>
+  );
+}
+
+function PuzzleScreen() {
+  const solved = useSudoku((state) => state.game.solved);
 
   return (
     <SafeAreaView style={styles.container}>

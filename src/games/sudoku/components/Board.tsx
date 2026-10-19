@@ -3,8 +3,8 @@ import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 import { theme } from '@/theme/theme';
 
+import { useSudoku } from '../context';
 import { highlights } from '../engine';
-import { useSudokuStore } from '../store';
 import { Cell } from './Cell';
 import { boxGrid } from './layout';
 
@@ -15,10 +15,10 @@ import { boxGrid } from './layout';
 // background between boxes, each box's light background between its cells. So every cell
 // gets exactly the same size.
 export function Board() {
-  const game = useSudokuStore((state) => state.game);
-  const selected = useSudokuStore((state) => state.selected);
-  const flash = useSudokuStore((state) => state.flash);
-  const select = useSudokuStore((state) => state.select);
+  const game = useSudoku((state) => state.game);
+  const selected = useSudoku((state) => state.selected);
+  const flash = useSudoku((state) => state.flash);
+  const select = useSudoku((state) => state.select);
   const [space, setSpace] = useState<{ width: number; height: number } | null>(null);
   const onLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
