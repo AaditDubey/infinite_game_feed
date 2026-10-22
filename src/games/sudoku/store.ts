@@ -30,6 +30,9 @@ export interface SudokuState {
   activate: (now: number) => void; // the puzzle is on screen, or the app came back
   deactivate: (now: number) => void; // the puzzle was left, or the app went to the background
   saveNow: () => void; // saves the play time so far, without pausing
+  // The puzzle left the feed unsolved: logs it as abandoned, with `at` as when it was last left.
+  // A solved puzzle was already logged as solved, so this does nothing then.
+  abandon: (at: number) => void;
 }
 
 export interface SudokuInit {
@@ -108,6 +111,22 @@ export function createSudokuStore({ game, elapsedMs }: SudokuInit): StoreApi<Sud
       },
       deactivate: (now) => set({ timer: stopwatch.pause(get().timer, now), justSolved: false }),
       saveNow: () => save(get()),
+      abandon: (at) => {
+        const { game, timer } = get();
+        if (game.solved) {
+          return;
+        }
+        void appendResult({
+          outcome: 'abandoned',
+          puzzleId: game.puzzle.id,
+          size: game.puzzle.size,
+          band: game.puzzle.band,
+          at,
+          elapsedMs: stopwatch.elapsedMs(timer, at),
+          mistakes: game.mistakes,
+        });
+        source.markAbandoned(game.puzzle.id, at);
+      },
     };
   });
 

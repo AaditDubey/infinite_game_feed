@@ -1,7 +1,7 @@
 import { EMPTY_HISTORY } from '@/puzzles/loader';
 import { savePlayHistory } from '@/storage/persistence';
 
-import { catalog, find, load, markSolved, pick } from './source';
+import { catalog, find, load, markAbandoned, markSolved, pick } from './source';
 import type { Band, GridSize, Puzzle } from './types';
 
 jest.mock('@/storage/persistence', () => ({ savePlayHistory: jest.fn() }));
@@ -22,9 +22,9 @@ beforeEach(() => {
 describe('pick', () => {
   it('serves puzzles in pack order and saves the play history each time', () => {
     expect(pick(1, nineByNine)).toEqual(first);
-    expect(savePlayHistory).toHaveBeenLastCalledWith({ solved: [], lastServed: [first.id] });
+    expect(savePlayHistory).toHaveBeenLastCalledWith({ ...EMPTY_HISTORY, lastServed: [first.id] });
     expect(pick(1, nineByNine)).toEqual(second);
-    expect(savePlayHistory).toHaveBeenLastCalledWith({ solved: [], lastServed: [second.id] });
+    expect(savePlayHistory).toHaveBeenLastCalledWith({ ...EMPTY_HISTORY, lastServed: [second.id] });
   });
 
   it('picks the size with the random source', () => {
@@ -33,7 +33,7 @@ describe('pick', () => {
   });
 
   it('carries on from the play history it was loaded with', () => {
-    load({ solved: [first.id, second.id], lastServed: [] });
+    load({ ...EMPTY_HISTORY, solved: [first.id, second.id] });
     expect(pick(1, nineByNine)).toEqual(third);
   });
 });
@@ -41,7 +41,7 @@ describe('pick', () => {
 describe('markSolved', () => {
   it('records the solve, saves it, and never serves the puzzle again', () => {
     markSolved(first.id);
-    expect(savePlayHistory).toHaveBeenCalledWith({ solved: [first.id], lastServed: [] });
+    expect(savePlayHistory).toHaveBeenCalledWith({ ...EMPTY_HISTORY, solved: [first.id] });
     expect(pick(1, nineByNine)).toEqual(second);
   });
 
@@ -49,6 +49,32 @@ describe('markSolved', () => {
     markSolved(first.id);
     markSolved(first.id);
     expect(savePlayHistory).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('markAbandoned', () => {
+  it('records when the puzzle was abandoned and saves it', () => {
+    markAbandoned(first.id, 5_000);
+    expect(savePlayHistory).toHaveBeenLastCalledWith({
+      ...EMPTY_HISTORY,
+      abandonedAt: { [first.id]: 5_000 },
+    });
+  });
+
+  it('keeps an abandoned puzzle unplayed, so it comes round again after the rest of its size', () => {
+    expect(pick(1, nineByNine)).toEqual(first);
+    markAbandoned(first.id, 5_000);
+    const rest = puzzlesOf(1, 9)
+      .slice(1)
+      .map(() => pick(1, nineByNine));
+    expect(rest).not.toContainEqual(first);
+    expect(pick(1, nineByNine)).toEqual(first);
+  });
+
+  it('is cleared by a later solve', () => {
+    markAbandoned(first.id, 5_000);
+    markSolved(first.id);
+    expect(savePlayHistory).toHaveBeenLastCalledWith({ ...EMPTY_HISTORY, solved: [first.id] });
   });
 });
 

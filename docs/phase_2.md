@@ -267,7 +267,7 @@ export const BACK_HISTORY = 20; // seen pages kept behind the current one
 export const AHEAD = 1;         // unseen pages kept ready below the current one
 export const LEARNED_AFTER = 3; // forward swipes after which the swipe label stops
 
-// createFeed(first, now): a feed of one page, already seen
+// createFeed(first): a feed of one page, already seen
 // append(state, { game, puzzleId, band }): adds an unseen page at the end
 // settleOn(state, index, now): marks the page seen, records leftAt on the page left,
 //   counts a forward swipe, and returns { state, dropped }: the pages that fell off the back history
@@ -315,6 +315,7 @@ export function createSudokuStore(init: {
   - `activate(now)`: the page became current, or the app came back. The timer runs unless the game is solved.
   - `deactivate(now)`: the page was left, or the app went to the background. The timer pauses and the game saves.
   - `saveNow()`: saves without pausing, for iOS's inactive state.
+  - `abandon(at)`: the page left the feed. It logs an abandon with `at` as `leftAt` and calls the source's `markAbandoned`, unless the game is solved, in which case it does nothing.
 - On a solve, the store stops the timer, logs the solve, and calls the Sudoku source's `markSolved`. It sets a `justSolved` flag, and the page shows the swipe label if the feed says the gesture isn't learned yet.
 - Saving works as in Task 9: a store subscription saves the game whenever a move or the timer changes it, under the page's key.
 - `context.tsx` provides each page's store to its components. Phase 1's components change one line each: `useSudokuStore(selector)` becomes `useSudoku(selector)`.
@@ -323,13 +324,13 @@ export function createSudokuStore(init: {
 
 One app-wide Zustand store.
 
-- It holds `ready`, the `FeedState` and each page's game store, created when a page is added and thrown away when it leaves.
+- It holds the `FeedState`, which is `null` until `restore()` has run and so doubles as the `ready` flag, and each page's game store, created when a page is added and thrown away when it leaves.
 - `restore()` loads everything at launch, carries over a Phase 1 game, and makes sure a page is waiting ahead.
-- `settleOn(index)` deactivates the page left and activates the page reached. It picks new pages through `pickBand` and the game's source. For each dropped unsolved page it logs an abandon and calls the source's `markAbandoned`. It deletes dropped pages' saves and saves the feed.
+- `settleOn(index)` deactivates the page left and activates the page reached. It picks new pages through `pickBand` and the game's source. For each dropped page that was seen, it calls the page store's `abandon(leftAt)`, which logs the abandon and calls the source's `markAbandoned` unless the game is solved. It deletes dropped pages' saves and saves the feed.
 - `pauseCurrent`, `resumeCurrent` and `saveCurrentNow` serve the app lifecycle hook.
 - `Feed.tsx` passes each page whether the gesture is learned, so the page knows whether `justSolved` shows the swipe label.
 
-`src/feed/games.ts` maps `'sudoku'` to the Sudoku source, `createSudokuStore` and `SudokuPage`. It's the only file under `src/feed/` that imports from `src/games/`.
+`src/feed/games.ts` maps `'sudoku'` to the Sudoku source, `createSudokuStore` and `SudokuPage`. It's the only file under `src/feed/` that imports from `src/games/`. Each game offers `load()`, which reads its play history at launch, and `serve(band, random)`, which picks a puzzle and makes its store. `GameStore` is the type of a page's store.
 
 ### The feed list (`src/feed/components/Feed.tsx`)
 
@@ -400,9 +401,17 @@ Run each task as its own plan-mode session, on its own branch, and commit when i
 2. **One store per puzzle.** Add `createSudokuStore`, the context and `useSudoku`, and move the catalog and play history into `source.ts`. The app still shows one puzzle and behaves exactly as in Phase 1, and every Phase 1 test passes after porting. Done on Oct 19, with two steps left for later tasks:
    - Until the feed exists, `src/games/sudoku/session.ts` holds the puzzle on screen, with Phase 1's launch, Next puzzle and band picker. Task 6 deletes it, along with the band picker, `useRestore.ts` and `useBackgroundPause.ts`.
    - `createSudokuStore` takes `{ game, elapsedMs }` and still saves under Phase 1's `v1:sudoku:game`, because launch can only reopen that key until Task 7. Task 7 adds `pageId` and the per-page key.
-3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI.
-4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load.
-5. **Feed store.** Wire the feed rules, the Sudoku source and the per-puzzle stores together, in memory only, with tests: settling, pages ahead, dropping and abandons, and timers.
+3. **Feed rules.** `feed.ts`, `difficulty.ts` and `paging.ts`, test-first. No UI. Done on Oct 19:
+   - `createFeed` takes no time, because the first page records nothing until it's left.
+   - The feed's `Band` type lives in `difficulty.ts`. It's the same as Sudoku's, which `src/feed/` can't import.
+   - `settleOn` ignores the current index and any index outside the list.
+   - `paging.ts` has `pageAt`, `pageOffset` and `pageLayout`, the last for `getItemLayout`.
+4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load. Done on Oct 19:
+   - The Sudoku store's `abandon(at)` writes the abandoned entry. A solved game ignores it, so the feed store never has to ask whether a page is solved.
+   - A play history whose `abandonedAt` is unreadable keeps its solves and loads with no abandons.
+5. **Feed store.** Wire the feed rules, the Sudoku source and the per-puzzle stores together, in memory only, with tests: settling, pages ahead, dropping and abandons, and timers. Done on Oct 19:
+   - `restore()` loads the play history and starts a fresh feed. Task 7 adds reopening the saved feed, the Phase 1 carry-over, and deleting dropped pages' saves.
+   - The feed store isn't wired into the app yet. Until Task 6, each page's store still saves under Phase 1's single `v1:sudoku:game` key.
 6. **Swipe feed UI.**
    - `Feed.tsx` with the settings above, `SudokuPage`, `SwipeHint` and the lifecycle hook.
    - Remove the band picker and the "Next puzzle" button.
