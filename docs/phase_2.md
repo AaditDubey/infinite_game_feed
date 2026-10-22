@@ -315,6 +315,7 @@ export function createSudokuStore(init: {
   - `activate(now)`: the page became current, or the app came back. The timer runs unless the game is solved.
   - `deactivate(now)`: the page was left, or the app went to the background. The timer pauses and the game saves.
   - `saveNow()`: saves without pausing, for iOS's inactive state.
+  - `abandon(at)`: the page left the feed. It logs an abandon with `at` as `leftAt` and calls the source's `markAbandoned`, unless the game is solved, in which case it does nothing.
 - On a solve, the store stops the timer, logs the solve, and calls the Sudoku source's `markSolved`. It sets a `justSolved` flag, and the page shows the swipe label if the feed says the gesture isn't learned yet.
 - Saving works as in Task 9: a store subscription saves the game whenever a move or the timer changes it, under the page's key.
 - `context.tsx` provides each page's store to its components. Phase 1's components change one line each: `useSudokuStore(selector)` becomes `useSudoku(selector)`.
@@ -405,7 +406,9 @@ Run each task as its own plan-mode session, on its own branch, and commit when i
    - The feed's `Band` type lives in `difficulty.ts`. It's the same as Sudoku's, which `src/feed/` can't import.
    - `settleOn` ignores the current index and any index outside the list.
    - `paging.ts` has `pageAt`, `pageOffset` and `pageLayout`, the last for `getItemLayout`.
-4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load.
+4. **Abandons in the results log and play history.** The `abandoned` outcome, its check on load, `abandonedAt` with `markAbandoned`, and tests. Phase 1's results and play history still load. Done on Oct 19:
+   - The Sudoku store's `abandon(at)` writes the abandoned entry. A solved game ignores it, so the feed store never has to ask whether a page is solved.
+   - A play history whose `abandonedAt` is unreadable keeps its solves and loads with no abandons.
 5. **Feed store.** Wire the feed rules, the Sudoku source and the per-puzzle stores together, in memory only, with tests: settling, pages ahead, dropping and abandons, and timers.
 6. **Swipe feed UI.**
    - `Feed.tsx` with the settings above, `SudokuPage`, `SwipeHint` and the lifecycle hook.

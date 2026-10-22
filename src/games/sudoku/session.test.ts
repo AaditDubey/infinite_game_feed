@@ -96,6 +96,7 @@ describe('next puzzle and band picker', () => {
     expect(savePlayHistory).toHaveBeenLastCalledWith({
       solved: [PUZZLE.id],
       lastServed: expect.arrayContaining([game.puzzle.id]),
+      abandonedAt: {},
     });
   });
 
@@ -154,7 +155,7 @@ describe('restoring on launch', () => {
       notedCell,
       4,
     );
-    const playHistory = { solved: [], lastServed: [hard.puzzle.id] };
+    const playHistory = { ...EMPTY_HISTORY, lastServed: [hard.puzzle.id] };
     jest
       .mocked(loadSudoku)
       .mockResolvedValueOnce({ game: { state: saved, elapsedMs: 83_000 }, playHistory });
@@ -172,7 +173,7 @@ describe('restoring on launch', () => {
     const firstGame = createGame(first);
     jest.mocked(loadSudoku).mockResolvedValueOnce({
       game: { state: fillCorrectly(firstGame, emptyCells(firstGame)), elapsedMs: 200_000 },
-      playHistory: { solved: [first.id, second.id], lastServed: [first.id] },
+      playHistory: { ...EMPTY_HISTORY, solved: [first.id, second.id], lastServed: [first.id] },
     });
     jest.setSystemTime(5_000);
     await session().restore();
@@ -188,7 +189,10 @@ describe('restoring on launch', () => {
     const { game } = store();
     expect(game.puzzle.band).toBe(1);
     expect(saveGame).toHaveBeenCalledWith(game, 0);
-    expect(savePlayHistory).toHaveBeenCalledWith({ solved: [], lastServed: [game.puzzle.id] });
+    expect(savePlayHistory).toHaveBeenCalledWith({
+      ...EMPTY_HISTORY,
+      lastServed: [game.puzzle.id],
+    });
   });
 
   it('does nothing once there is a puzzle', async () => {

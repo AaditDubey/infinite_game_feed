@@ -17,14 +17,15 @@ export const KEYS = {
   results: 'v1:sudoku:results',
 } as const;
 
-// One entry in the results log. From Phase 2 a swipe past an unsolved puzzle logs 'abandoned'.
+// One entry in the results log. Each puzzle that appears in the feed gets exactly one: 'solved',
+// or 'abandoned' when it leaves the feed's back history unsolved.
 export interface ResultEntry {
-  outcome: 'solved';
+  outcome: 'solved' | 'abandoned';
   puzzleId: string;
   size: GridSize;
   band: Band;
-  at: number; // when it happened, in ms since 1970, like Date.now()
-  elapsedMs: number;
+  at: number; // when it happened (for an abandon, when it was last left), in ms since 1970
+  elapsedMs: number; // play time across every visit
   mistakes: number;
 }
 
@@ -103,7 +104,7 @@ export function appendResult(entry: ResultEntry): Promise<void> {
   });
 }
 
-// The app doesn't read the log in Phase 1; Phase 3's rating will. Waits for pending writes first.
+// The app doesn't read the log yet; Phase 3's rating will. Waits for pending writes first.
 export async function loadResults(): Promise<ResultEntry[]> {
   await queue;
   const log = parseJson(await AsyncStorage.getItem(KEYS.results));
@@ -172,9 +173,12 @@ function isCell(raw: unknown, puzzle: Puzzle, index: number): raw is CellState {
   );
 }
 
+// Phase 1 saved no abandons, so a missing `abandonedAt` loads as none. An unreadable one does
+// too, rather than losing the solved puzzles with it.
 function parsePlayHistory(raw: unknown): PlayHistory {
   if (isRecord(raw) && isStringArray(raw.solved) && isStringArray(raw.lastServed)) {
-    return { solved: raw.solved, lastServed: raw.lastServed };
+    const abandonedAt = isTimesById(raw.abandonedAt) ? raw.abandonedAt : {};
+    return { solved: raw.solved, lastServed: raw.lastServed, abandonedAt };
   }
   return EMPTY_HISTORY;
 }
@@ -182,7 +186,7 @@ function parsePlayHistory(raw: unknown): PlayHistory {
 function isResultEntry(raw: unknown): raw is ResultEntry {
   return (
     isRecord(raw) &&
-    raw.outcome === 'solved' &&
+    (raw.outcome === 'solved' || raw.outcome === 'abandoned') &&
     typeof raw.puzzleId === 'string' &&
     (raw.size === 6 || raw.size === 9) &&
     isWholeNumber(raw.band) &&
@@ -196,6 +200,10 @@ function isResultEntry(raw: unknown): raw is ResultEntry {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isTimesById(value: unknown): value is Record<string, number> {
+  return isRecord(value) && Object.values(value).every(isWholeNumber);
 }
 
 function isStringArray(value: unknown): value is string[] {
